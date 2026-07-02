@@ -1,0 +1,54 @@
+flowchart TB
+    subgraph Client["Client Layer"]
+        UI["Conversation Studio UI\n(Dashboard · Playground · KB Manager · Governance)"]
+    end
+
+    subgraph Gateway["API Gateway"]
+        GW["Auth (SSO/OIDC) · Rate limiting · Request routing"]
+    end
+
+    subgraph Core["Core Services"]
+        CONV["Conversation Service\n(session + prompt orchestration)"]
+        ORCH["Model Orchestrator\n(routes to mocked/real LLM adapters)"]
+        RAG["Retrieval Service\n(embeds query, fetches KB chunks)"]
+        EVAL["Evaluation Engine\n(faithfulness, relevance, completeness scoring)"]
+        GOV["Governance Engine\n(PII redaction, banned-topic filter, policy rules)"]
+        FB["Feedback Service\n(human ratings + comments)"]
+        ANALYTICS["Analytics Service\n(aggregation, trends, KPIs)"]
+    end
+
+    subgraph Data["Data Layer"]
+        KBSTORE[("Knowledge Store\nVector DB + metadata")]
+        CONVSTORE[("Conversation & Evaluation Store\n(audit-ready, versioned)")]
+        FBSTORE[("Feedback Store")]
+        POLICYSTORE[("Policy / Rules Store")]
+    end
+
+    subgraph External["External / Mocked Integrations"]
+        LLM["LLM Providers\n(mocked adapter layer)"]
+        SRC["Knowledge Sources\n(Confluence, SharePoint, PDF, Wiki — simulated)"]
+    end
+
+    UI --> GW --> CONV
+    CONV --> RAG
+    RAG --> KBSTORE
+    RAG --> SRC
+    CONV --> ORCH
+    ORCH --> LLM
+    ORCH --> GOV
+    GOV --> POLICYSTORE
+    GOV --> EVAL
+    EVAL --> CONVSTORE
+    EVAL --> RAG
+    CONV --> CONVSTORE
+    UI --> FB --> FBSTORE
+    UI --> ANALYTICS
+    ANALYTICS --> CONVSTORE
+    ANALYTICS --> FBSTORE
+    UI --> GOV
+
+    style Client fill:#161B22,stroke:#2A323C,color:#E6EDF3
+    style Gateway fill:#161B22,stroke:#2A323C,color:#E6EDF3
+    style Core fill:#0F1419,stroke:#3FB88F,color:#E6EDF3
+    style Data fill:#161B22,stroke:#58A6FF,color:#E6EDF3
+    style External fill:#161B22,stroke:#E8963C,color:#E6EDF3

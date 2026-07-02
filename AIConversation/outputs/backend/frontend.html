@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI Conversation Studio — Global Enterprise</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0F1419;
+  --surface:#161B22;
+  --surface-alt:#1C232C;
+  --border:#2A323C;
+  --text:#E6EDF3;
+  --muted:#8B96A5;
+  --faint:#5B6472;
+  --teal:#3FB88F;
+  --teal-dim:rgba(63,184,143,0.14);
+  --amber:#E8963C;
+  --amber-dim:rgba(232,150,60,0.14);
+  --red:#E5534B;
+  --red-dim:rgba(229,83,75,0.14);
+  --blue:#58A6FF;
+  --blue-dim:rgba(88,166,255,0.14);
+  --radius:10px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;height:100%;}
+.mono{font-family:'JetBrains Mono',monospace;}
+.display{font-family:'Space Grotesk',sans-serif;}
+#app{display:flex;height:100vh;overflow:hidden;}
+
+/* ---- Nav rail ---- */
+#nav{width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 0;}
+.brand{display:flex;align-items:center;gap:10px;padding:0 20px 22px 20px;border-bottom:1px solid var(--border);margin-bottom:14px;}
+.brand-mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--teal),var(--blue));display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:700;font-size:15px;color:#0F1419;}
+.brand-text{font-family:'Space Grotesk';font-weight:600;font-size:14.5px;line-height:1.25;}
+.brand-text span{display:block;font-size:10.5px;color:var(--muted);font-weight:400;letter-spacing:.03em;}
+.navlink{display:flex;align-items:center;gap:11px;padding:10px 20px;color:var(--muted);cursor:pointer;font-size:13.5px;font-weight:500;border-left:2px solid transparent;transition:.12s;}
+.navlink:hover{color:var(--text);background:var(--surface-alt);}
+.navlink.active{color:var(--text);border-left:2px solid var(--teal);background:var(--surface-alt);}
+.navlink .ico{width:16px;text-align:center;opacity:.85;}
+.navfoot{margin-top:auto;padding:14px 20px;border-top:1px solid var(--border);font-size:11px;color:var(--faint);}
+
+/* ---- Main ---- */
+#main{flex:1;overflow-y:auto;padding:26px 34px 60px 34px;}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;}
+.topbar h1{font-family:'Space Grotesk';font-size:21px;margin:0;font-weight:600;}
+.topbar p{margin:4px 0 0 0;color:var(--muted);font-size:13px;}
+.selectors{display:flex;gap:10px;}
+select{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:12.5px;font-family:'Inter';}
+
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;}
+.kpi .label{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
+.kpi .value{font-family:'Space Grotesk';font-size:26px;font-weight:600;}
+.kpi .delta{font-size:11.5px;margin-top:6px;}
+.up{color:var(--teal);} .down{color:var(--red);}
+
+.panel-title{font-family:'Space Grotesk';font-size:14.5px;font-weight:600;margin:0 0 14px 0;display:flex;align-items:center;justify-content:space-between;}
+.tag{font-size:10.5px;padding:3px 8px;border-radius:20px;font-weight:600;letter-spacing:.02em;}
+.tag.teal{background:var(--teal-dim);color:var(--teal);}
+.tag.amber{background:var(--amber-dim);color:var(--amber);}
+.tag.red{background:var(--red-dim);color:var(--red);}
+.tag.blue{background:var(--blue-dim);color:var(--blue);}
+
+.chartsrow{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-bottom:14px;}
+.chartsrow2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+canvas{max-height:230px;}
+
+/* ---- Knowledge base ---- */
+.kb-list{display:flex;flex-direction:column;gap:10px;}
+.kb-item{display:flex;justify-content:space-between;align-items:center;background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;padding:12px 14px;}
+.kb-item .name{font-weight:600;font-size:13.5px;}
+.kb-item .meta{color:var(--muted);font-size:11.5px;margin-top:3px;}
+.btn{background:var(--teal);color:#0B1210;border:none;padding:9px 15px;border-radius:8px;font-weight:600;font-size:12.5px;cursor:pointer;}
+.btn.secondary{background:transparent;border:1px solid var(--border);color:var(--text);}
+.btn.small{padding:6px 11px;font-size:11.5px;}
+.btn:hover{filter:brightness(1.08);}
+.status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;}
+.status-dot.live{background:var(--teal);}
+.status-dot.stale{background:var(--amber);}
+
+/* ---- Playground ---- */
+.playground{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;}
+textarea{width:100%;background:var(--surface-alt);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:12px;font-family:'Inter';font-size:13.5px;resize:vertical;min-height:90px;}
+.field-label{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;display:block;}
+.form-row{margin-bottom:14px;}
+.response-box{background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;padding:16px;font-size:13.5px;line-height:1.65;}
+.response-box.empty{color:var(--faint);font-style:italic;}
+mark.verified{background:var(--teal-dim);color:var(--text);border-bottom:2px solid var(--teal);padding:1px 2px;border-radius:2px;}
+mark.unverified{background:var(--amber-dim);color:var(--text);border-bottom:2px solid var(--amber);padding:1px 2px;border-radius:2px;}
+mark.contradicted{background:var(--red-dim);color:var(--text);border-bottom:2px solid var(--red);padding:1px 2px;border-radius:2px;}
+.legend{display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--muted);}
+.legend span{display:flex;align-items:center;gap:5px;}
+.legend .sw{width:9px;height:9px;border-radius:2px;}
+
+.meter-row{display:flex;gap:10px;margin-top:14px;}
+.meter{flex:1;background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-align:center;}
+.meter .mval{font-family:'Space Grotesk';font-size:19px;font-weight:600;}
+.meter .mlabel{font-size:10.5px;color:var(--muted);margin-top:3px;}
+
+.fb-row{display:flex;gap:8px;margin-top:12px;align-items:center;}
+.fb-btn{background:var(--surface-alt);border:1px solid var(--border);color:var(--muted);padding:7px 12px;border-radius:7px;cursor:pointer;font-size:13px;}
+.fb-btn.on{border-color:var(--teal);color:var(--teal);}
+.fb-btn.off-on{border-color:var(--red);color:var(--red);}
+
+/* ---- Governance / eval / feedback tables ---- */
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th{text-align:left;color:var(--muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:8px 10px;border-bottom:1px solid var(--border);}
+td{padding:10px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
+tr:hover td{background:var(--surface-alt);}
+.rule-row{display:flex;justify-content:space-between;align-items:center;background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:9px;}
+.switch{width:36px;height:20px;border-radius:20px;background:var(--border);position:relative;cursor:pointer;flex-shrink:0;}
+.switch.on{background:var(--teal);}
+.switch .knob{width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:.15s;}
+.switch.on .knob{left:18px;}
+
+.explain-note{background:var(--blue-dim);border:1px solid rgba(88,166,255,0.3);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--text);margin-top:14px;line-height:1.6;}
+.explain-note b{color:var(--blue);}
+
+::-webkit-scrollbar{width:9px;} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px;}
+
+/* ---- Banner / toast / modal (replace native alert/prompt/confirm, which get blocked in sandboxed previews) ---- */
+#connBanner{display:none;background:var(--red-dim);border:1px solid rgba(229,83,75,0.35);color:var(--text);padding:10px 16px;font-size:12.5px;border-radius:8px;margin-bottom:18px;align-items:center;gap:10px;}
+#connBanner b{color:var(--red);}
+#connBanner .fix{margin-left:auto;font-family:'JetBrains Mono';font-size:11px;color:var(--muted);}
+
+#toastStack{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:200;}
+.toast{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--teal);color:var(--text);padding:11px 15px;border-radius:8px;font-size:12.5px;box-shadow:0 6px 18px rgba(0,0,0,0.35);min-width:220px;max-width:340px;animation:toastin .15s ease-out;}
+.toast.error{border-left-color:var(--red);}
+.toast.info{border-left-color:var(--blue);}
+@keyframes toastin{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(4,6,9,0.6);z-index:150;align-items:center;justify-content:center;}
+.modal-backdrop.open{display:flex;}
+.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px;width:400px;max-width:90vw;}
+.modal-box h3{font-family:'Space Grotesk';margin:0 0 14px 0;font-size:15px;}
+.modal-box input,.modal-box select,.modal-box textarea{width:100%;background:var(--surface-alt);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:9px 11px;font-size:13px;font-family:'Inter';margin-top:5px;}
+.modal-box textarea{min-height:70px;resize:vertical;}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+.field-error{color:var(--red);font-size:11.5px;margin-top:6px;display:none;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="nav">
+    <div class="brand">
+      <div class="brand-mark">CS</div>
+      <div class="brand-text">Conversation Studio<span>Global Enterprise</span></div>
+    </div>
+    <div class="navlink active" data-view="dashboard"><span class="ico">◆</span> Analytics</div>
+    <div class="navlink" data-view="knowledge"><span class="ico">▤</span> Knowledge Base</div>
+    <div class="navlink" data-view="playground"><span class="ico">▶</span> Testing Playground</div>
+    <div class="navlink" data-view="evaluation"><span class="ico">✓</span> Evaluation Log</div>
+    <div class="navlink" data-view="feedback"><span class="ico">♥</span> Feedback</div>
+    <div class="navlink" data-view="governance"><span class="ico">⛨</span> Governance</div>
+    <div class="navfoot mono">v0.5 · backend-connected<br>LLM &amp; sources: MOCKED
+      <div id="connStatus" style="margin-top:8px;font-size:10.5px;">● connecting…</div>
+      <input id="apiBaseInput" value="http://localhost:8000/api/v1" style="width:100%;margin-top:6px;background:var(--surface-alt);border:1px solid var(--border);color:var(--text);font-size:10px;padding:5px 6px;border-radius:5px;font-family:'JetBrains Mono'"
+        onchange="API_BASE=this.value; boot();">
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="connBanner"><b>⚠ Backend unreachable.</b> This UI needs the FastAPI service running.<span class="fix">uvicorn main:app --port 8000</span></div>
+    <!-- ================= DASHBOARD ================= -->
+    <div class="view" id="view-dashboard">
+      <div class="topbar">
+        <div><h1>Quality &amp; Governance Analytics</h1><p>Cross-assistant visibility into response quality, hallucination rate and adoption</p></div>
+        <div class="selectors"><select id="assistantFilter"></select></div>
+      </div>
+      <div class="grid4" id="kpiRow"></div>
+      <div class="chartsrow">
+        <div class="card"><div class="panel-title">Faithfulness score — 14 day trend <span class="tag blue">EXPLAINABLE</span></div><canvas id="trendChart"></canvas></div>
+        <div class="card"><div class="panel-title">Hallucination rate by assistant</div><canvas id="halluChart"></canvas></div>
+      </div>
+      <div class="chartsrow2">
+        <div class="card"><div class="panel-title">Feedback sentiment</div><canvas id="fbChart"></canvas></div>
+        <div class="card"><div class="panel-title">Conversation volume by knowledge source</div><canvas id="kbChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ================= KNOWLEDGE BASE ================= -->
+    <div class="view" id="view-knowledge" style="display:none">
+      <div class="topbar"><div><h1>Knowledge Base Manager</h1><p>Simulated knowledge sources grounding assistant responses</p></div>
+      <button class="btn" onclick="openAddSourceModal()">+ Add source</button></div>
+      <div class="card"><div class="panel-title">Registered sources <span class="tag teal" id="kbCount"></span></div>
+      <div class="kb-list" id="kbList"></div></div>
+    </div>
+
+    <!-- ================= PLAYGROUND ================= -->
+    <div class="view" id="view-playground" style="display:none">
+      <div class="topbar"><div><h1>Testing Playground</h1><p>Prompt an assistant against a chosen knowledge source and inspect grounding in real time</p></div></div>
+      <div class="playground">
+        <div class="card">
+          <div class="form-row"><span class="field-label">Assistant / Model</span>
+            <select id="pgAssistant" style="width:100%"></select></div>
+          <div class="form-row"><span class="field-label">Knowledge source</span>
+            <select id="pgSource" style="width:100%"></select></div>
+          <div class="form-row"><span class="field-label">Prompt</span>
+            <textarea id="pgPrompt" placeholder="Ask something about the selected knowledge source…">What is our refund policy for enterprise annual contracts?</textarea></div>
+          <button class="btn" onclick="runPrompt()">Run test ▶</button>
+          <button class="btn secondary" onclick="randomPrompt()">Try example</button>
+        </div>
+        <div class="card">
+          <div class="panel-title">Response <span id="latencyTag" class="tag blue" style="display:none"></span></div>
+          <div class="response-box empty" id="responseBox">Run a prompt to see the mocked assistant response with inline grounding annotations.</div>
+          <div class="legend">
+            <span><i class="sw" style="background:var(--teal)"></i>Verified in source</span>
+            <span><i class="sw" style="background:var(--amber)"></i>Unverified claim</span>
+            <span><i class="sw" style="background:var(--red)"></i>Contradicts source</span>
+          </div>
+          <div class="meter-row" id="meterRow" style="display:none"></div>
+          <div class="explain-note" id="explainNote" style="display:none"></div>
+          <div class="fb-row" id="fbRow" style="display:none">
+            <span class="field-label" style="margin:0">Rate this response:</span>
+            <button class="fb-btn" id="fbUp" onclick="setFeedback(true)">👍 Helpful</button>
+            <button class="fb-btn" id="fbDown" onclick="setFeedback(false)">👎 Needs work</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= EVALUATION LOG ================= -->
+    <div class="view" id="view-evaluation" style="display:none">
+      <div class="topbar"><div><h1>Response Evaluation Log</h1><p>Every generated response, automatically scored for faithfulness, relevance and completeness</p></div></div>
+      <div class="card">
+        <table><thead><tr><th>Time</th><th>Assistant</th><th>Prompt</th><th>Faithfulness</th><th>Relevance</th><th>Flag</th></tr></thead>
+        <tbody id="evalTable"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ================= FEEDBACK ================= -->
+    <div class="view" id="view-feedback" style="display:none">
+      <div class="topbar"><div><h1>Human Feedback</h1><p>Aggregated reviewer sentiment feeding back into evaluation calibration</p></div></div>
+      <div class="grid4" id="fbKpi"></div>
+      <div class="card">
+        <table><thead><tr><th>Time</th><th>Assistant</th><th>Prompt</th><th>Rating</th><th>Comment</th></tr></thead>
+        <tbody id="fbTable"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ================= GOVERNANCE ================= -->
+    <div class="view" id="view-governance" style="display:none">
+      <div class="topbar"><div><h1>Governance &amp; Policy</h1><p>Guardrails applied before a response reaches the end user</p></div></div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="panel-title">Active policies</div>
+        <div id="rulesList"></div>
+      </div>
+      <div class="card">
+        <div class="panel-title">Audit trail <span class="tag amber" id="auditCount"></span></div>
+        <table><thead><tr><th>Time</th><th>Assistant</th><th>Policy triggered</th><th>Action</th><th>Reviewer</th></tr></thead>
+        <tbody id="auditTable"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="addSourceModal">
+  <div class="modal-box">
+    <h3>Add knowledge source</h3>
+    <label class="field-label">Name</label>
+    <input id="newSourceName" placeholder="e.g. Vendor Security Addendum">
+    <div class="field-error" id="newSourceError">Name is required.</div>
+    <label class="field-label" style="margin-top:12px;display:block">Type</label>
+    <select id="newSourceType">
+      <option>Uploaded doc</option><option>PDF policy doc</option><option>Confluence space</option>
+      <option>Internal wiki</option><option>DOCX</option>
+    </select>
+    <label class="field-label" style="margin-top:12px;display:block">Content (simulated — used for grounding)</label>
+    <textarea id="newSourceContent" placeholder="Paste or describe the source content the assistant should be grounded in…"></textarea>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeAddSourceModal()">Cancel</button>
+      <button class="btn" onclick="submitAddSource()">Create source</button>
+    </div>
+  </div>
+</div>
+<div id="toastStack"></div>
+
+<script>
+/* =========================================================================
+   AI Conversation Studio — backend-connected build.
+   Talks to the FastAPI service (see /backend). No local mock data here —
+   every view is populated from the API. Change API_BASE below (or via the
+   field in the nav footer) if your backend runs somewhere other than
+   http://localhost:8000.
+   ========================================================================= */
+let API_BASE = (location.protocol === 'file:' ? "http://localhost:8000" : location.origin) + "/api/v1";
+{ const input = document.getElementById('apiBaseInput'); if (input) input.value = API_BASE; }
+
+async function api(path, opts) {
+  const res = await fetch(API_BASE + path, Object.assign({ headers: { "Content-Type": "application/json" } }, opts));
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+let assistants = [];
+let sources = [];
+let lastResponse = null;
+
+async function boot() {
+  let reachable = true;
+  try {
+    assistants = await api('/assistants');
+  } catch (e) { assistants = []; reachable = false; }
+  try {
+    sources = await api('/knowledge-sources');
+  } catch (e) { sources = []; reachable = false; }
+
+  fillSelect(document.getElementById('assistantFilter'), ["All assistants", ...assistants]);
+  fillSelect(document.getElementById('pgAssistant'), assistants);
+  document.getElementById('pgSource').innerHTML = sources.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+
+  setConnStatus(reachable);
+  if (!reachable) {
+    toast('Cannot reach the backend at ' + API_BASE + '. Start it, or edit the URL in the left nav.', 'error');
+    return;
+  }
+  renderKB();
+  renderDashboard();
+}
+
+function setConnStatus(ok) {
+  const el = document.getElementById('connStatus');
+  if (el) {
+    el.textContent = ok ? '● connected to ' + API_BASE : '● cannot reach ' + API_BASE;
+    el.style.color = ok ? 'var(--teal)' : 'var(--red)';
+  }
+  const banner = document.getElementById('connBanner');
+  if (banner) banner.style.display = ok ? 'none' : 'flex';
+}
+
+function toast(message, type) {
+  const stack = document.getElementById('toastStack');
+  const el = document.createElement('div');
+  el.className = 'toast' + (type ? ' ' + type : '');
+  el.textContent = message;
+  stack.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function fillSelect(sel, arr) { sel.innerHTML = arr.map(v => `<option>${v}</option>`).join(''); }
+
+/* ---------------- nav ---------------- */
+document.querySelectorAll('.navlink').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.navlink').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+    document.getElementById('view-' + el.dataset.view).style.display = 'block';
+    if (el.dataset.view === 'dashboard') renderDashboard();
+    if (el.dataset.view === 'evaluation') renderEval();
+    if (el.dataset.view === 'feedback') renderFeedback();
+    if (el.dataset.view === 'governance') renderGovernance();
+  });
+});
+document.getElementById('assistantFilter').addEventListener('change', renderDashboard);
+
+function scoreColor(v) { return v >= 80 ? '#3FB88F' : v >= 60 ? '#E8963C' : '#E5534B'; }
+function fmtTime(iso) {
+  return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+/* ================= DASHBOARD ================= */
+let charts = {};
+async function renderDashboard() {
+  const filter = document.getElementById('assistantFilter').value;
+  const qs = filter && filter !== 'All assistants' ? `?assistantId=${encodeURIComponent(filter)}` : '';
+
+  let kpis, trend, byAssistant, bySource;
+  try {
+    [kpis, trend, byAssistant, bySource] = await Promise.all([
+      api('/analytics/kpis' + qs),
+      api('/analytics/trend?days=14'),
+      api('/analytics/by-assistant?metric=hallucinationRate'),
+      api('/analytics/by-source'),
+    ]);
+    setConnStatus(true);
+  } catch (e) { setConnStatus(false); return; }
+
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="card kpi"><div class="label">Conversations logged</div><div class="value">${kpis.conversationsLogged}</div><div class="delta up">▲ across ${kpis.assistantCount} assistants</div></div>
+    <div class="card kpi"><div class="label">Avg. faithfulness score</div><div class="value">${kpis.avgFaithfulness}%</div><div class="delta ${kpis.avgFaithfulness >= 80 ? 'up' : 'down'}">${kpis.avgFaithfulness >= 80 ? '▲ within target' : '▼ below 80% target'}</div></div>
+    <div class="card kpi"><div class="label">Hallucination rate</div><div class="value">${kpis.hallucinationRate}%</div><div class="delta ${kpis.hallucinationRate <= 15 ? 'up' : 'down'}">${kpis.hallucinationRate <= 15 ? '▲ under threshold' : '▼ above 15% threshold'}</div></div>
+    <div class="card kpi"><div class="label">Positive feedback</div><div class="value">${kpis.positiveFeedbackPct}%</div><div class="delta up">from live ratings</div></div>
+  `;
+
+  Object.values(charts).forEach(c => c && c.destroy());
+
+  charts.trend = new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: { labels: trend.labels.map(d => new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })), datasets: [{ data: trend.values, borderColor: '#3FB88F', backgroundColor: 'rgba(63,184,143,0.12)', fill: true, tension: .35, pointRadius: 0, borderWidth: 2 }] },
+    options: { plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100, grid: { color: '#2A323C' }, ticks: { color: '#8B96A5' } }, x: { grid: { display: false }, ticks: { color: '#8B96A5', maxTicksLimit: 7 } } } }
+  });
+
+  charts.hallu = new Chart(document.getElementById('halluChart'), {
+    type: 'bar',
+    data: { labels: byAssistant.map(a => a.assistant), datasets: [{ data: byAssistant.map(a => a.value), backgroundColor: byAssistant.map(a => a.value > 20 ? '#E5534B' : a.value > 10 ? '#E8963C' : '#3FB88F'), borderRadius: 5 }] },
+    options: { plugins: { legend: { display: false } }, scales: { y: { min: 0, grid: { color: '#2A323C' }, ticks: { color: '#8B96A5' } }, x: { grid: { display: false }, ticks: { color: '#8B96A5', font: { size: 10 } } } } }
+  });
+
+  let fbSummary = { positive: 0, negative: 0 };
+  try { fbSummary = await api('/feedback/summary' + qs); } catch (e) {}
+  charts.fb = new Chart(document.getElementById('fbChart'), {
+    type: 'doughnut',
+    data: { labels: ['Helpful', 'Needs work'], datasets: [{ data: [fbSummary.positive, fbSummary.negative], backgroundColor: ['#3FB88F', '#E5534B'], borderWidth: 0 }] },
+    options: { plugins: { legend: { position: 'bottom', labels: { color: '#8B96A5', font: { size: 11 } } } } }
+  });
+
+  charts.kb = new Chart(document.getElementById('kbChart'), {
+    type: 'bar',
+    data: { labels: bySource.map(s => s.source.split(' ').slice(0, 2).join(' ')), datasets: [{ data: bySource.map(s => s.volume), backgroundColor: '#58A6FF', borderRadius: 5 }] },
+    options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { grid: { color: '#2A323C' }, ticks: { color: '#8B96A5' } }, y: { grid: { display: false }, ticks: { color: '#8B96A5', font: { size: 10.5 } } } } }
+  });
+}
+
+/* ================= KNOWLEDGE BASE ================= */
+async function renderKB() {
+  document.getElementById('kbCount').textContent = sources.length + ' sources';
+  document.getElementById('kbList').innerHTML = sources.map(s => `
+    <div class="kb-item">
+      <div>
+        <div class="name"><span class="status-dot ${s.status}"></span>${s.name}</div>
+        <div class="meta">${s.type} · ${s.chunks} indexed chunks · updated ${fmtTime(s.updated_at)}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="tag ${s.status === 'live' ? 'teal' : 'amber'}">${s.status === 'live' ? 'LIVE' : 'STALE — REINDEX'}</span>
+        <button class="btn small secondary" onclick="reindexSource('${s.id}')">Re-index</button>
+      </div>
+    </div>`).join('');
+}
+async function reindexSource(id) {
+  try {
+    const updated = await api(`/knowledge-sources/${id}/reindex`, { method: 'POST' });
+    const idx = sources.findIndex(s => s.id === id);
+    if (idx > -1) sources[idx] = updated;
+    renderKB();
+    toast('Re-indexed "' + updated.name + '".');
+  } catch (e) {
+    toast('Re-index failed — backend unreachable.', 'error');
+    setConnStatus(false);
+  }
+}
+
+function openAddSourceModal() {
+  document.getElementById('newSourceName').value = '';
+  document.getElementById('newSourceContent').value = '';
+  document.getElementById('newSourceError').style.display = 'none';
+  document.getElementById('addSourceModal').classList.add('open');
+}
+function closeAddSourceModal() {
+  document.getElementById('addSourceModal').classList.remove('open');
+}
+async function submitAddSource() {
+  const name = document.getElementById('newSourceName').value.trim();
+  const type = document.getElementById('newSourceType').value;
+  const content = document.getElementById('newSourceContent').value.trim();
+  if (!name) {
+    document.getElementById('newSourceError').style.display = 'block';
+    return;
+  }
+  try {
+    const created = await api('/knowledge-sources', { method: 'POST', body: JSON.stringify({ name, type, content }) });
+    sources.push(created);
+    document.getElementById('pgSource').innerHTML = sources.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    renderKB();
+    closeAddSourceModal();
+    toast('Added knowledge source "' + created.name + '".');
+  } catch (e) {
+    toast('Could not create source — backend unreachable.', 'error');
+    setConnStatus(false);
+  }
+}
+
+/* ================= PLAYGROUND ================= */
+function randomPrompt() {
+  const examples = [
+    "What is our refund policy for enterprise annual contracts?",
+    "How is customer data encrypted?",
+    "How many PTO days do employees accrue per month?",
+    "What is the uptime SLA for the Enterprise tier?",
+    "How long does VPN credential rotation take?"
+  ];
+  document.getElementById('pgPrompt').value = examples[Math.floor(Math.random() * examples.length)];
+}
+
+async function runPrompt() {
+  const assistantId = document.getElementById('pgAssistant').value;
+  const knowledgeSourceId = document.getElementById('pgSource').value;
+  const prompt = document.getElementById('pgPrompt').value.trim();
+  if (!prompt) { toast('Enter a prompt first.', 'error'); return; }
+
+  document.getElementById('latencyTag').style.display = 'inline-block';
+  document.getElementById('latencyTag').textContent = '…generating';
+  document.getElementById('responseBox').className = 'response-box';
+  document.getElementById('responseBox').textContent = 'Calling the backend…';
+
+  try {
+    const result = await api('/conversations', { method: 'POST', body: JSON.stringify({ assistantId, knowledgeSourceId, prompt }) });
+    lastResponse = { assistant: assistantId, prompt, conversationId: result.conversationId };
+
+    document.getElementById('latencyTag').textContent = result.latencyMs + 'ms · ' + result.tokens + ' tokens';
+    document.getElementById('responseBox').innerHTML = result.response;
+    document.getElementById('meterRow').style.display = 'flex';
+    const ev = result.evaluation;
+    document.getElementById('meterRow').innerHTML = `
+      <div class="meter"><div class="mval" style="color:${scoreColor(ev.faithfulness)}">${ev.faithfulness}%</div><div class="mlabel">Faithfulness</div></div>
+      <div class="meter"><div class="mval" style="color:${scoreColor(ev.relevance)}">${ev.relevance}%</div><div class="mlabel">Relevance</div></div>
+      <div class="meter"><div class="mval" style="color:${scoreColor(ev.completeness)}">${ev.completeness}%</div><div class="mlabel">Completeness</div></div>
+    `;
+    document.getElementById('explainNote').style.display = 'block';
+    document.getElementById('explainNote').innerHTML = `<b>Why this score:</b> ${ev.explanation}`;
+    document.getElementById('fbRow').style.display = 'flex';
+    document.getElementById('fbUp').className = 'fb-btn'; document.getElementById('fbDown').className = 'fb-btn';
+  } catch (e) {
+    document.getElementById('responseBox').className = 'response-box empty';
+    document.getElementById('responseBox').textContent = 'Could not reach the backend at ' + API_BASE + '. Is it running? (' + e.message + ')';
+    document.getElementById('latencyTag').style.display = 'none';
+    setConnStatus(false);
+  }
+}
+
+async function setFeedback(positive) {
+  document.getElementById('fbUp').className = 'fb-btn' + (positive ? ' on' : '');
+  document.getElementById('fbDown').className = 'fb-btn' + (!positive ? ' off-on' : '');
+  if (!lastResponse) return;
+  try {
+    await api('/feedback', {
+      method: 'POST', body: JSON.stringify({
+        conversationId: lastResponse.conversationId, assistant: lastResponse.assistant,
+        prompt: lastResponse.prompt, rating: positive, comment: '(submitted from Playground)'
+      })
+    });
+    toast(positive ? 'Marked helpful.' : 'Marked as needing work.');
+  } catch (e) {
+    toast('Feedback not saved — backend unreachable.', 'error');
+    setConnStatus(false);
+  }
+}
+
+/* ================= EVALUATION LOG ================= */
+async function renderEval() {
+  let rows;
+  try { rows = await api('/evaluations?pageSize=60'); setConnStatus(true); }
+  catch (e) { setConnStatus(false); document.getElementById('evalTable').innerHTML = ''; return; }
+  document.getElementById('evalTable').innerHTML = rows.map(e => `
+    <tr><td class="mono">${fmtTime(e.created_at)}</td>
+    <td>${e.assistant}</td><td>${e.prompt}</td>
+    <td style="color:${scoreColor(e.faithfulness)}">${e.faithfulness}%</td>
+    <td style="color:${scoreColor(e.relevance)}">${e.relevance}%</td>
+    <td>${e.flagged ? '<span class="tag red">REVIEW</span>' : '<span class="tag teal">OK</span>'}</td></tr>`).join('');
+}
+
+/* ================= FEEDBACK ================= */
+async function renderFeedback() {
+  let summary, rows;
+  try {
+    [summary, rows] = await Promise.all([api('/feedback/summary'), api('/feedback?pageSize=60')]);
+    setConnStatus(true);
+  } catch (e) { setConnStatus(false); return; }
+  document.getElementById('fbKpi').innerHTML = `
+    <div class="card kpi"><div class="label">Total ratings</div><div class="value">${summary.total}</div></div>
+    <div class="card kpi"><div class="label">Helpful</div><div class="value" style="color:var(--teal)">${summary.positive}</div></div>
+    <div class="card kpi"><div class="label">Needs work</div><div class="value" style="color:var(--red)">${summary.negative}</div></div>
+    <div class="card kpi"><div class="label">Satisfaction</div><div class="value">${summary.satisfactionPct}%</div></div>
+  `;
+  document.getElementById('fbTable').innerHTML = rows.map(f => `
+    <tr><td class="mono">${fmtTime(f.created_at)}</td>
+    <td>${f.assistant}</td><td>${f.prompt}</td>
+    <td>${f.rating ? '<span class="tag teal">👍 Helpful</span>' : '<span class="tag red">👎 Needs work</span>'}</td>
+    <td style="color:var(--muted)">${f.comment || ''}</td></tr>`).join('');
+}
+
+/* ================= GOVERNANCE ================= */
+async function renderGovernance() {
+  let policies, audit;
+  try {
+    [policies, audit] = await Promise.all([api('/governance/policies'), api('/governance/audit-log?pageSize=50')]);
+    setConnStatus(true);
+  } catch (e) { setConnStatus(false); return; }
+  document.getElementById('rulesList').innerHTML = policies.map(r => `
+    <div class="rule-row">
+      <div><div class="name" style="font-weight:600;font-size:13px">${r.name}</div><div class="meta" style="color:var(--muted);font-size:11.5px;margin-top:3px">${r.desc}</div></div>
+      <div class="switch ${r.enabled ? 'on' : ''}" onclick="toggleRule(${r.id}, ${r.enabled ? 0 : 1})"><div class="knob"></div></div>
+    </div>`).join('');
+  document.getElementById('auditCount').textContent = audit.length + ' events';
+  document.getElementById('auditTable').innerHTML = audit.map(a => `
+    <tr><td class="mono">${fmtTime(a.created_at)}</td>
+    <td>${a.assistant}</td><td>${a.policy}</td><td><span class="tag amber">${a.action}</span></td><td>${a.reviewer || ''}</td></tr>`).join('');
+}
+async function toggleRule(id, newVal) {
+  try {
+    await api(`/governance/policies/${id}`, { method: 'PATCH', body: JSON.stringify({ enabled: !!newVal }) });
+    toast(newVal ? 'Policy enabled.' : 'Policy disabled.');
+    renderGovernance();
+  } catch (e) {
+    toast('Could not update policy — backend unreachable.', 'error');
+    setConnStatus(false);
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
