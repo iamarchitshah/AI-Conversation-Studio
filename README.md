@@ -139,24 +139,6 @@ No separate frontend server required.
 
 ---
 
-# 📸 Screenshots
-
-Add screenshots here.
-
-```
-screenshots/
-    home.png
-    chat.png
-    history.png
-```
-
-Example:
-
-```markdown
-![Home](screenshots/home.png)
-
-![Chat](screenshots/chat.png)
-```
 
 ---
 
