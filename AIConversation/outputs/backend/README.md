@@ -2,7 +2,7 @@
 
 A real FastAPI + SQLite backend implementing the API design from the challenge doc,
 now serving the frontend directly so there is exactly **one thing to start and one
-URL to open**.
+URL to open**. 
 
 ## Run it (3 steps)
 
