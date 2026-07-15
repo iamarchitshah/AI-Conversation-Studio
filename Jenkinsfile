@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         // Defines the Python executable to use
-        PYTHON = 'python3'
+        PYTHON = 'python'
     }
 
     stages {
@@ -21,9 +21,9 @@ pipeline {
                     echo 'Installing Python dependencies...'
                     // Setting up a virtual environment is best practice
                     bat '''
-                        $PYTHON -m venv venv
-                        . venv/bin/activate
-                        pip install --upgrade pip
+                        %PYTHON% -m venv venv
+                        call venv\\Scripts\\activate.bat
+                        python -m pip install --upgrade pip
                         pip install -r requirements.txt
                     '''
                 }
@@ -35,10 +35,10 @@ pipeline {
                 dir('outputs/backend') {
                     echo 'Running Python Linting/Checks...'
                     bat '''
-                        . venv/bin/activate
-                        # You can add flake8 or pylint here to check the code quality:
-                        # pip install flake8
-                        # flake8 .
+                        call venv\\Scripts\\activate.bat
+                        REM You can add flake8 or pylint here to check the code quality:
+                        REM pip install flake8
+                        REM flake8 .
                         echo "Skipping linting since it's not configured yet."
                     '''
                 }
@@ -50,10 +50,10 @@ pipeline {
                 dir('outputs/backend') {
                     echo 'Running Unit Tests...'
                     bat '''
-                        . venv/bin/activate
-                        # Add your pytest setup here when tests are available:
-                        # pip install pytest
-                        # pytest
+                        call venv\\Scripts\\activate.bat
+                        REM Add your pytest setup here when tests are available:
+                        REM pip install pytest
+                        REM pytest
                         echo "No tests found. Skipping tests."
                     '''
                 }
