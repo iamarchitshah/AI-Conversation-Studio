@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-conversation-studio
+  namespace: ai-conversation-studio
+  labels:
+    app: ai-conversation-studio
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ai-conversation-studio
+  template:
+    metadata:
+      labels:
+        app: ai-conversation-studio
+    spec:
+      containers:
+      - name: ai-conversation-studio
+        # AWS ECR Image URI
+        image: 419676625590.dkr.ecr.us-east-1.amazonaws.com/ai-conversation-studio:latest
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: ai-conversation-studio-config
+        env:
+        - name: DB_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: ai-conversation-studio-config
+              key: DB_PATH
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "250m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 2
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: ai-conversation-studio-pvc
+
