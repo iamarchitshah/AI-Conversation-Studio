@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-conversation-studio-config
+  namespace: ai-conversation-studio
+data:
+  # Application configuration
+  DB_PATH: "/data/studio.db"
+  APP_TITLE: "AI Conversation Studio"
+  # AWS region (adjust as needed)
+  AWS_REGION: "us-east-1"
+

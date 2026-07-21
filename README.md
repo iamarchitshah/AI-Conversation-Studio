@@ -124,6 +124,115 @@ No separate frontend server required.
 
 ---
 
+# ☁️ Deploy to AWS EKS (Kubernetes)
+
+Deploy AI Conversation Studio to Amazon EKS with persistent SQLite storage via EBS volumes.
+
+## Prerequisites
+
+- [AWS CLI](https://aws.amazon.com/cli/) installed & configured (`aws configure`)
+- [kubectl](https://kubernetes.io/docs/tasks/tools/) installed
+- [Docker](https://docs.docker.com/get-docker/) installed
+- An [AWS account](https://aws.amazon.com/) with sufficient permissions
+
+## Step 1 — Create EKS Cluster
+
+If you don't have an EKS cluster yet, create one using `eksctl`:
+
+```bash
+eksctl create cluster \
+  --name ai-conversation-studio \
+  --region us-east-1 \
+  --nodegroup-name standard-workers \
+  --node-type t3.medium \
+  --nodes 2 \
+  --nodes-min 2 \
+  --nodes-max 4 \
+  --managed
+```
+
+> ⏱ This takes ~15 minutes. While it runs, proceed to Step 2 in parallel.
+
+## Step 2 — Create ECR Repository
+
+```bash
+aws ecr create-repository \
+  --repository-name ai-conversation-studio \
+  --region us-east-1
+```
+
+## Step 3 — Build & Push Docker Image
+
+```bash
+chmod +x scripts/build-and-push.sh
+scripts/build-and-push.sh <YOUR_AWS_ACCOUNT_ID> us-east-1
+```
+
+**Example:** `scripts/build-and-push.sh 123456789012 us-east-1`
+
+## Step 4 — Update Deployment Image
+
+Edit `k8s/deployment.yaml` and replace `<YOUR_AWS_ACCOUNT_ID>` and `<REGION>` with your actual values:
+
+```yaml
+image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/ai-conversation-studio:latest
+```
+
+## Step 5 — Deploy to EKS
+
+```bash
+kubectl config use-context <your-eks-cluster-context>
+chmod +x scripts/deploy-eks.sh
+scripts/deploy-eks.sh <YOUR_AWS_ACCOUNT_ID> us-east-1
+```
+
+Or manually apply all manifests:
+
+```bash
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/configmap.yaml
+kubectl apply -f k8s/pvc.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/hpa.yaml
+kubectl apply -f k8s/service.yaml
+```
+
+## Step 6 — Verify
+
+```bash
+# Check pods
+kubectl get pods -n ai-conversation-studio
+
+# Get the LoadBalancer URL
+kubectl get svc -n ai-conversation-studio ai-conversation-studio-service \
+  -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+```
+
+Open the returned URL in your browser — you should see the AI Conversation Studio UI.
+
+## Kubernetes Architecture
+
+| Resource | Description |
+|----------|-------------|
+| `Namespace` | Isolated namespace `ai-conversation-studio` |
+| `Deployment` | 2 replicas (auto-scales 2–10), with health probes |
+| `Service` | AWS LoadBalancer (port 80 → container 8000) |
+| `PVC` | 1Gi EBS `gp3` volume for SQLite persistence |
+| `ConfigMap` | App configuration (`DB_PATH`, etc.) |
+| `HPA` | Auto-scale on CPU (70%) and memory (80%) |
+
+## Important Notes
+
+- **Data Persistence:** SQLite database is stored on a PVC backed by AWS EBS (`gp3`). Data survives pod restarts but is **tied to a single AZ**. For multi-AZ HA, migrate to Amazon RDS (PostgreSQL).
+- **No Rolling Updates Data Loss:** Because SQLite is a file-based DB, rolling updates work fine — the new pod mounts the same PVC.
+- **Backup**: Periodically backup the PVC. Example:
+  ```bash
+  kubectl exec -n ai-conversation-studio deployment/ai-conversation-studio -- \
+    sh -c "cp /data/studio.db /data/studio-$(date +%Y%m%d).db"
+  ```
+
+---
+
 # 🚀 API Endpoints
 
 | Method | Endpoint | Description |

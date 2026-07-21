@@ -11,6 +11,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application
 COPY outputs/backend/ .
 
+# Create /data directory for persistent SQLite storage (mounted via PVC in K8s)
+RUN mkdir -p /data
+
 # Expose port 8000
 EXPOSE 8000
 

@@ -2,13 +2,16 @@
 SQLite data layer for the AI Conversation Studio backend.
 Kept as plain sqlite3 (no ORM) so the schema is easy to read end-to-end
 for a 48-hour build. Swap for Postgres + SQLAlchemy for production.
+
+In Kubernetes, set DB_PATH env var to a path on the mounted PVC
+(e.g. /data/studio.db) to persist data across pod restarts.
 """
 import sqlite3
 import os
 import random
 import datetime as dt
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "studio.db")
+DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "studio.db"))
 
 ASSISTANTS = ["Support Copilot", "Sales Assistant", "HR Helpdesk", "IT Service Bot"]
 
