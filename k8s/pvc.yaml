@@ -11,5 +11,5 @@ spec:
   resources:
     requests:
       storage: 1Gi
-  storageClassName: gp3  # AWS EBS gp3 volume — adjust if your cluster uses a different default
+  storageClassName: gp2
 
