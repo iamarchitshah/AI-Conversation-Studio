@@ -70,6 +70,9 @@ pipeline {
                 
                 // Force Jenkins to use your personal Windows user profile's credential folders
                 USERPROFILE = 'C:\\Users\\Archit Shah'
+                
+                // Instruct Docker to bypass named pipe permissions by communicating over local TCP
+                DOCKER_HOST = 'tcp://localhost:2375'
             }
             steps {
                 // Return to workspace root because Dockerfile and k8s/ are in the root directory
