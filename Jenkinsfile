@@ -67,6 +67,9 @@ pipeline {
                 AWS_REGION = 'us-east-1'
                 CLUSTER_NAME = 'ai-conversation-studio-cluster'
                 ECR_REPO = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/ai-conversation-studio"
+                
+                // Force Jenkins to use your personal Windows user profile's credential folders
+                USERPROFILE = 'C:\\Users\\Archit Shah'
             }
             steps {
                 // Return to workspace root because Dockerfile and k8s/ are in the root directory
