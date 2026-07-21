@@ -91,6 +91,7 @@ pipeline {
                     bat "aws eks update-kubeconfig --region %AWS_REGION% --name %CLUSTER_NAME%"
                     
                     echo '5. Applying Kubernetes Manifests...'
+                    bat "kubectl apply -f k8s/namespace.yaml"
                     bat "kubectl apply -f k8s/"
                     
                     echo 'Deployment complete!'
