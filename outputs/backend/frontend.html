@@ -200,12 +200,66 @@ tr:hover td{background:var(--surface-hover);}
 .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;}
 .field-error{color:var(--red);font-size:11.5px;margin-top:6px;display:none;}
 
+/* ---- Authentication ---- */
+#authScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px;background:var(--bg-glow),var(--bg);}
+.auth-shell{width:100%;max-width:980px;display:grid;grid-template-columns:1.05fr .95fr;background:var(--surface);border:1px solid var(--border);border-radius:18px;overflow:hidden;box-shadow:var(--shadow-md);}
+.auth-intro{padding:48px;background:linear-gradient(145deg,rgba(63,184,143,.16),rgba(88,166,255,.08) 55%,transparent);border-right:1px solid var(--border);}
+.auth-mark{width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,var(--teal-bright),var(--blue));display:grid;place-items:center;color:#08110D;font-family:'Space Grotesk';font-weight:700;font-size:19px;margin-bottom:42px;}
+.auth-intro h1{font-family:'Space Grotesk';font-size:36px;line-height:1.08;margin:0 0 16px;max-width:390px;}
+.auth-intro p{color:var(--muted);line-height:1.7;max-width:390px;margin:0;}
+.auth-roles{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-top:34px;max-width:430px;}
+.auth-role{border:1px solid var(--border);background:rgba(20,26,33,.68);border-radius:8px;padding:10px 12px;color:var(--muted);font-size:11px;}
+.auth-role strong{display:block;color:var(--text);font-size:12px;margin-bottom:3px;}
+.auth-form{padding:42px 40px;}
+.auth-form h2{font-family:'Space Grotesk';font-size:24px;margin:0 0 7px;}
+.auth-form .sub{color:var(--muted);font-size:13px;margin:0 0 26px;}
+.auth-form label{display:block;margin-top:14px;}
+.auth-form input,.auth-form select{width:100%;background:var(--surface-alt);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:11px 12px;font-size:13px;font-family:'Inter';margin-top:6px;}
+.auth-submit{width:100%;margin-top:22px;}
+.auth-switch{text-align:center;color:var(--muted);font-size:12px;margin:18px 0 0;}
+.auth-switch button{background:none;border:0;color:var(--teal-bright);font:inherit;cursor:pointer;padding:0 0 0 4px;}
+.auth-error{display:none;background:var(--red-dim);border:1px solid rgba(229,83,75,.35);color:var(--text);border-radius:8px;padding:10px 12px;font-size:12px;margin-top:14px;}
+@media(max-width:760px){.auth-shell{grid-template-columns:1fr}.auth-intro{padding:30px;border-right:0;border-bottom:1px solid var(--border)}.auth-intro h1{font-size:29px}.auth-mark{margin-bottom:24px}.auth-roles{margin-top:24px}.auth-form{padding:30px 24px}}
+
 *{scrollbar-color:var(--border) transparent;}
 ::-webkit-scrollbar{width:9px;height:9px;} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px;} ::-webkit-scrollbar-thumb:hover{background:var(--faint);}
 </style>
 </head>
 <body>
 <div id="orbs"><div class="orb orb1"></div><div class="orb orb2"></div><div class="orb orb3"></div></div>
+<section id="authScreen">
+  <div class="auth-shell">
+    <div class="auth-intro">
+      <div class="auth-mark">CS</div>
+      <h1>Bring the right people into the conversation.</h1>
+      <p>Conversation Studio gives every reviewer a clear place to test, evaluate, govern, and improve AI assistants.</p>
+      <div class="auth-roles">
+        <div class="auth-role"><strong>Knowledge Manager</strong>Source documents</div>
+        <div class="auth-role"><strong>QA Tester</strong>Pre-live testing</div>
+        <div class="auth-role"><strong>Evaluator</strong>Answer review</div>
+        <div class="auth-role"><strong>Governance Owner</strong>Safety rules</div>
+        <div class="auth-role"><strong>Leadership</strong>Trend visibility</div>
+      </div>
+    </div>
+    <form class="auth-form" id="authForm">
+      <h2 id="authTitle">Welcome back</h2>
+      <p class="sub" id="authSubtitle">Sign in to open your quality workspace.</p>
+      <div class="auth-error" id="authError"></div>
+      <div id="registerFields" style="display:none">
+        <label class="field-label" for="authName">Full name</label>
+        <input id="authName" autocomplete="name" placeholder="Alex Morgan">
+        <label class="field-label" for="authRole">Your role</label>
+        <select id="authRole"></select>
+      </div>
+      <label class="field-label" for="authEmail">Work email</label>
+      <input id="authEmail" type="email" autocomplete="email" placeholder="you@company.com" required>
+      <label class="field-label" for="authPassword">Password</label>
+      <input id="authPassword" type="password" autocomplete="current-password" placeholder="At least 8 characters" required>
+      <button class="btn auth-submit" id="authSubmit" type="submit">Sign in</button>
+      <p class="auth-switch"><span id="authSwitchText">New to the workspace?</span> <button type="button" id="authSwitch">Create an account</button></p>
+    </form>
+  </div>
+</section>
 <div id="app">
   <div id="nav">
     <div class="brand">
@@ -222,6 +276,8 @@ tr:hover td{background:var(--surface-hover);}
       <div id="connStatus" style="margin-top:8px;font-size:10.5px;display:flex;align-items:center;gap:6px;"><span id="connDot" class="status-dot" style="margin:0"></span> connecting…</div>
       <input id="apiBaseInput" value="http://localhost:8000/api/v1" style="width:100%;margin-top:6px;background:var(--surface-alt);border:1px solid var(--border);color:var(--text);font-size:10px;padding:5px 6px;border-radius:5px;font-family:'JetBrains Mono'"
         onchange="API_BASE=this.value; boot();">
+      <div id="userSession" style="display:none;margin-top:12px;color:var(--muted);line-height:1.5"></div>
+      <button class="btn secondary small" style="width:100%;margin-top:7px;display:none" id="logoutButton" onclick="logout()">Sign out</button>
     </div>
   </div>
 
@@ -361,7 +417,10 @@ let API_BASE = (location.protocol === 'file:' ? "http://localhost:8000" : locati
 { const input = document.getElementById('apiBaseInput'); if (input) input.value = API_BASE; }
 
 async function api(path, opts) {
-  const res = await fetch(API_BASE + path, Object.assign({ headers: { "Content-Type": "application/json" } }, opts));
+  const headers = Object.assign({ "Content-Type": "application/json" }, opts && opts.headers);
+  const token = sessionStorage.getItem('studioToken');
+  if (token) headers.Authorization = 'Bearer ' + token;
+  const res = await fetch(API_BASE + path, Object.assign({ headers }, opts));
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
@@ -369,6 +428,79 @@ async function api(path, opts) {
 let assistants = [];
 let sources = [];
 let lastResponse = null;
+let currentUser = null;
+
+function setAuthenticated(auth) {
+  currentUser = auth.user;
+  sessionStorage.setItem('studioToken', auth.token);
+  sessionStorage.setItem('studioUser', JSON.stringify(auth.user));
+  showUserSession(auth.user);
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  boot();
+}
+
+function showUserSession(user) {
+  const session = document.getElementById('userSession');
+  const logoutButton = document.getElementById('logoutButton');
+  if (session && user) { session.textContent = user.name + ' · ' + user.role; session.style.display = 'block'; }
+  if (logoutButton) logoutButton.style.display = 'block';
+}
+
+async function logout() {
+  try { await api('/auth/logout', { method: 'POST' }); } catch (_) {}
+  sessionStorage.clear();
+  currentUser = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('authScreen').style.display = 'flex';
+  document.getElementById('authPassword').value = '';
+}
+
+async function submitAuth(event) {
+  event.preventDefault();
+  const registerMode = document.getElementById('registerFields').style.display !== 'none';
+  const payload = { email: document.getElementById('authEmail').value.trim(), password: document.getElementById('authPassword').value };
+  if (registerMode) {
+    payload.name = document.getElementById('authName').value.trim();
+    payload.role = document.getElementById('authRole').value;
+  }
+  const error = document.getElementById('authError');
+  error.style.display = 'none';
+  try {
+    const result = await api(registerMode ? '/auth/register' : '/auth/login', { method: 'POST', body: JSON.stringify(payload) });
+    setAuthenticated(result);
+  } catch (e) {
+    let message = 'Unable to authenticate right now.';
+    try { message = JSON.parse(e.message).detail || message; } catch (_) {}
+    error.textContent = message;
+    error.style.display = 'block';
+  }
+}
+
+async function prepareAuth() {
+  try {
+    const roles = await api('/auth/roles');
+    document.getElementById('authRole').innerHTML = roles.map(role => `<option>${role}</option>`).join('');
+  } catch (_) {}
+  const storedUser = sessionStorage.getItem('studioUser');
+  if (sessionStorage.getItem('studioToken') && storedUser) {
+    try { currentUser = await api('/auth/me'); showUserSession(currentUser); document.getElementById('authScreen').style.display = 'none'; document.getElementById('app').style.display = 'flex'; boot(); return; } catch (_) { sessionStorage.clear(); }
+  }
+  document.getElementById('app').style.display = 'none';
+}
+
+document.getElementById('authForm').addEventListener('submit', submitAuth);
+document.getElementById('authSwitch').addEventListener('click', () => {
+  const fields = document.getElementById('registerFields');
+  const registerMode = fields.style.display === 'none';
+  fields.style.display = registerMode ? 'block' : 'none';
+  document.getElementById('authTitle').textContent = registerMode ? 'Create your account' : 'Welcome back';
+  document.getElementById('authSubtitle').textContent = registerMode ? 'Choose the role that matches how you help the studio.' : 'Sign in to open your quality workspace.';
+  document.getElementById('authSubmit').textContent = registerMode ? 'Create account' : 'Sign in';
+  document.getElementById('authSwitchText').textContent = registerMode ? 'Already have an account?' : 'New to the workspace?';
+  document.getElementById('authSwitch').textContent = registerMode ? 'Sign in' : 'Create an account';
+  document.getElementById('authPassword').setAttribute('autocomplete', registerMode ? 'new-password' : 'current-password');
+});
 
 /* ---- tiny inline icon helpers (used inside template strings) ---- */
 function icoBarChart(){return `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>`;}
@@ -725,7 +857,7 @@ async function toggleRule(id, newVal) {
   }
 }
 
-boot();
+prepareAuth();
 </script>
 </body>
 </html>

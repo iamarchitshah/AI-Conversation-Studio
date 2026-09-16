@@ -5,10 +5,12 @@ Docs at:   http://localhost:8000/docs
 """
 import uuid
 import datetime as dt
+import hashlib
+import secrets
 from pathlib import Path
 from typing import Optional, List
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -61,6 +63,121 @@ class FeedbackRequest(BaseModel):
 class PolicyPatch(BaseModel):
     enabled: Optional[bool] = None
     desc: Optional[str] = None
+
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+    role: str
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+AUTH_ROLES = ["Knowledge Manager", "QA Tester", "Evaluator", "Governance Owner", "Leadership"]
+
+
+def hash_password(password: str, salt: Optional[bytes] = None) -> str:
+    salt = salt or secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 240000)
+    return f"pbkdf2_sha256$240000${salt.hex()}${digest.hex()}"
+
+
+def verify_password(password: str, stored: str) -> bool:
+    try:
+        algorithm, rounds, salt_hex, digest_hex = stored.split("$", 3)
+        if algorithm != "pbkdf2_sha256":
+            return False
+        digest = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt_hex), int(rounds))
+        return secrets.compare_digest(digest.hex(), digest_hex)
+    except (ValueError, TypeError):
+        return False
+
+
+def user_payload(row):
+    return {"id": row["id"], "name": row["name"], "email": row["email"], "role": row["role"]}
+
+
+def issue_session(user_id: str):
+    token = secrets.token_urlsafe(32)
+    expires_at = (dt.datetime.utcnow() + dt.timedelta(days=7)).isoformat()
+    conn = db.get_conn()
+    conn.execute("INSERT INTO auth_sessions (token, user_id, expires_at) VALUES (?,?,?)", (token, user_id, expires_at))
+    conn.commit()
+    conn.close()
+    return token, expires_at
+
+
+def current_user(authorization: Optional[str] = Header(default=None)):
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(401, "Authentication required")
+    token = authorization.split(" ", 1)[1].strip()
+    conn = db.get_conn()
+    row = conn.execute(
+        """SELECT u.* FROM users u JOIN auth_sessions s ON s.user_id=u.id
+           WHERE s.token=? AND s.expires_at>?""", (token, now_iso())
+    ).fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(401, "Invalid or expired session")
+    return row
+
+
+@app.get("/api/v1/auth/roles")
+def auth_roles():
+    return AUTH_ROLES
+
+
+@app.post("/api/v1/auth/register")
+def register(req: RegisterRequest):
+    name, email, password, role = req.name.strip(), req.email.strip().lower(), req.password, req.role.strip()
+    if len(name) < 2 or "@" not in email:
+        raise HTTPException(400, "Enter a valid name and email")
+    if len(password) < 8:
+        raise HTTPException(400, "Password must be at least 8 characters")
+    if role not in AUTH_ROLES:
+        raise HTTPException(400, "Choose a valid role")
+    user_id = str(uuid.uuid4())
+    conn = db.get_conn()
+    try:
+        conn.execute(
+            "INSERT INTO users (id, name, email, role, password_hash, created_at) VALUES (?,?,?,?,?,?)",
+            (user_id, name, email, role, hash_password(password), now_iso()),
+        )
+        conn.commit()
+        user = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    except db.sqlite3.IntegrityError:
+        conn.close()
+        raise HTTPException(409, "An account with that email already exists")
+    conn.close()
+    token, expires_at = issue_session(user_id)
+    return {"token": token, "expiresAt": expires_at, "user": user_payload(user)}
+
+
+@app.post("/api/v1/auth/login")
+def login(req: LoginRequest):
+    conn = db.get_conn()
+    user = conn.execute("SELECT * FROM users WHERE email=? COLLATE NOCASE", (req.email.strip(),)).fetchone()
+    conn.close()
+    if not user or not verify_password(req.password, user["password_hash"]):
+        raise HTTPException(401, "Invalid email or password")
+    token, expires_at = issue_session(user["id"])
+    return {"token": token, "expiresAt": expires_at, "user": user_payload(user)}
+
+
+@app.get("/api/v1/auth/me")
+def auth_me(authorization: Optional[str] = Header(default=None)):
+    return user_payload(current_user(authorization))
+
+
+@app.post("/api/v1/auth/logout")
+def logout(authorization: Optional[str] = Header(default=None)):
+    if authorization and authorization.lower().startswith("bearer "):
+        conn = db.get_conn()
+        conn.execute("DELETE FROM auth_sessions WHERE token=?", (authorization.split(" ", 1)[1].strip(),))
+        conn.commit()
+        conn.close()
+    return {"loggedOut": True}
 
 
 def now_iso():
