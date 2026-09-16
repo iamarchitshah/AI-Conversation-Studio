@@ -1,0 +1,9 @@
+import sys
+from pathlib import Path
+
+backend_dir = Path(__file__).resolve().parent.parent / "outputs" / "backend"
+sys.path.insert(0, str(backend_dir))
+
+from main import app
+
+__all__ = ["app"]

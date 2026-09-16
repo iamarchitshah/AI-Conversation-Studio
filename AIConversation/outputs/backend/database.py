@@ -11,7 +11,10 @@ import os
 import random
 import datetime as dt
 
-DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "studio.db"))
+DB_PATH = os.environ.get(
+    "DB_PATH",
+    "/tmp/studio.db" if os.environ.get("VERCEL") else os.path.join(os.path.dirname(__file__), "studio.db"),
+)
 
 ASSISTANTS = ["Support Copilot", "Sales Assistant", "HR Helpdesk", "IT Service Bot"]
 
