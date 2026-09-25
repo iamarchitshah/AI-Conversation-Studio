@@ -123,7 +123,7 @@ def init_db(reset: bool = False):
     CREATE TABLE IF NOT EXISTS policies (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        desc TEXT NOT NULL,
+        "desc" TEXT NOT NULL,
         enabled INTEGER NOT NULL DEFAULT 1
     );
 
@@ -175,7 +175,7 @@ def _seed(conn):
         )
 
     for p in POLICIES_SEED:
-        cur.execute("INSERT INTO policies (name, desc, enabled) VALUES (?,?,?)", (p["name"], p["desc"], p["enabled"]))
+            cur.execute("INSERT INTO policies (name, \"desc\", enabled) VALUES (?,?,?)", (p["name"], p["desc"], p["enabled"]))
 
     import uuid
     from scoring import mock_generate  # local import to avoid circular import at module load

@@ -1,20 +1,87 @@
-"""
-SQLite data layer for the AI Conversation Studio backend.
-Kept as plain sqlite3 (no ORM) so the schema is easy to read end-to-end
-for a 48-hour build. Swap for Postgres + SQLAlchemy for production.
-
-In Kubernetes, set DB_PATH env var to a path on the mounted PVC
-(e.g. /data/studio.db) to persist data across pod restarts.
-"""
+"""Database layer with Supabase Postgres support and a local SQLite fallback."""
 import sqlite3
 import os
 import random
 import datetime as dt
+import re
+import logging
+
+try:
+    import psycopg
+    from psycopg import errors as pg_errors
+    from psycopg_pool import ConnectionPool
+    from psycopg.rows import dict_row
+except ImportError:  # SQLite-only local installs can still boot before dependency install.
+    psycopg = None
+    pg_errors = None
+    ConnectionPool = None
 
 DB_PATH = os.environ.get(
     "DB_PATH",
     "/tmp/studio.db" if os.environ.get("VERCEL") else os.path.join(os.path.dirname(__file__), "studio.db"),
 )
+SUPABASE_DB_URL = os.environ.get("SUPABASE_DB_URL") or os.environ.get("DATABASE_URL")
+USING_POSTGRES = bool(SUPABASE_DB_URL)
+INTEGRITY_ERRORS = (sqlite3.IntegrityError, pg_errors.UniqueViolation) if pg_errors else (sqlite3.IntegrityError,)
+logger = logging.getLogger(__name__)
+POSTGRES_UNAVAILABLE = False
+POSTGRES_POOL = None
+
+
+class PostgresCursor:
+    def __init__(self, cursor):
+        self.cursor = cursor
+
+    def execute(self, query, params=()):
+        self.cursor.execute(query.replace("?", "%s"), params)
+        return self
+
+    def fetchone(self):
+        return self.cursor.fetchone()
+
+    def fetchall(self):
+        return self.cursor.fetchall()
+
+
+class PostgresConnection:
+    def __init__(self, pool):
+        if psycopg is None:
+            raise RuntimeError("psycopg is required when SUPABASE_DB_URL is configured")
+        self.pool = pool
+        self.connection = pool.getconn()
+
+    def execute(self, query, params=()):
+        return self.connection.execute(query.replace("?", "%s"), params)
+
+    def executescript(self, script):
+        for statement in re.split(r";\s*(?:\n|$)", script):
+            statement = statement.strip()
+            if statement:
+                self.connection.execute(statement)
+
+    def cursor(self):
+        return PostgresCursor(self.connection.cursor())
+
+    def commit(self):
+        self.connection.commit()
+
+    def close(self):
+        self.pool.putconn(self.connection)
+
+
+def postgres_pool():
+    global POSTGRES_POOL
+    if POSTGRES_POOL is None:
+        if ConnectionPool is None:
+            raise RuntimeError("psycopg[pool] is required when SUPABASE_DB_URL is configured")
+        POSTGRES_POOL = ConnectionPool(
+            conninfo=SUPABASE_DB_URL,
+            min_size=1,
+            max_size=8,
+            kwargs={"row_factory": dict_row, "connect_timeout": 8},
+            open=True,
+        )
+    return POSTGRES_POOL
 
 ASSISTANTS = ["Support Copilot", "Sales Assistant", "HR Helpdesk", "IT Service Bot"]
 
@@ -39,6 +106,40 @@ SOURCES_SEED = [
          status="stale", chunks=63,
          content=("Access requests for production systems require two approvals and are "
                    "provisioned within 1 business day. VPN credentials rotate every 90 days.")),
+        dict(id="kb5", name="Security Policy — Endpoint and MFA", type="PDF policy doc",
+            status="live", chunks=146,
+            content=("Production access requires a company-managed device and multi-factor authentication. "
+                    "Personal laptops may access approved low-risk tools only and may not access production systems. "
+                    "Security incidents must be reported to the SOC within 30 minutes. "
+                    "Privileged sessions require phishing-resistant MFA and are recorded.")),
+        dict(id="kb6", name="Privacy and Data Handling Standard", type="PDF policy doc",
+            status="live", chunks=203,
+            content=("Customer personal data must be encrypted in transit and at rest. "
+                    "Employees must not paste passwords, national IDs, payment card numbers, or private health information into an AI assistant. "
+                    "Data retention is 30 days for conversation content unless a legal hold applies. "
+                    "Privacy incidents must be reported to the Privacy Office within one business day.")),
+        dict(id="kb7", name="Incident Response Playbook", type="Internal wiki",
+            status="live", chunks=118,
+            content=("A suspected security incident is triaged as P1 when production data or credentials may be exposed. "
+                    "The incident commander opens a response channel, preserves evidence, and assigns a communications lead. "
+                    "Customer notification requires Legal and Security approval. "
+                    "Post-incident review is due within 10 business days.")),
+        dict(id="kb8", name="Vendor Risk Management Standard", type="Confluence space",
+            status="live", chunks=89,
+            content=("New vendors handling confidential data require a security review before contracting. "
+                    "Critical vendors are reassessed annually and must provide current compliance evidence. "
+                    "Procurement may not approve a vendor with an unresolved critical finding without written risk acceptance.")),
+        dict(id="kb9", name="Travel and Expense Policy 2026", type="DOCX",
+            status="live", chunks=74,
+            content=("Domestic travel must be booked through the approved travel portal. "
+                    "Meals are reimbursable up to 75 dollars per day with an itemized receipt. "
+                    "Manager approval is required before booking international travel. "
+                    "Expense reports are due within 15 days of returning.")),
+        dict(id="kb10", name="Business Continuity Plan", type="PDF policy doc",
+            status="stale", chunks=132,
+            content=("The recovery time objective for the customer API is four hours. "
+                    "The recovery point objective is one hour. "
+                    "Continuity exercises are performed twice per year and documented by the Resilience Owner.")),
 ]
 
 POLICIES_SEED = [
@@ -56,6 +157,29 @@ SAMPLE_PROMPTS = [
     "What's the uptime SLA?",
     "How do I request VPN access?",
     "What's our parental leave policy?",
+    "Can I use my personal laptop to access production systems if I have MFA enabled?",
+    "What information should never be pasted into the AI assistant?",
+    "How quickly must a security incident be reported?",
+    "When is a vendor security review required?",
+    "What is the meal reimbursement limit?",
+    "What is the customer API recovery time objective?",
+    "Who approves customer notification after an incident?",
+]
+
+TEST_CASES = [
+    ("kb1", "Can I get a refund on an annual contract after 20 days?"),
+    ("kb1", "Are monthly contracts refundable after 14 days?"),
+    ("kb2", "Does the platform support SAML and what is the Enterprise uptime SLA?"),
+    ("kb3", "How much paid parental leave is available?"),
+    ("kb4", "How many approvals are needed for production access?"),
+    ("kb5", "Can I use my personal laptop to access production systems if I have MFA?"),
+    ("kb5", "How quickly must a suspected security incident be reported?"),
+    ("kb6", "Can I paste a customer national ID into the assistant?"),
+    ("kb6", "How long is conversation content retained?"),
+    ("kb7", "When does an incident require Legal approval for notification?"),
+    ("kb8", "When is a vendor security review required?"),
+    ("kb9", "What is the daily meal reimbursement limit?"),
+    ("kb10", "What is the customer API recovery time objective?"),
 ]
 
 FEEDBACK_COMMENTS = [
@@ -68,6 +192,17 @@ FEEDBACK_COMMENTS = [
 
 
 def get_conn():
+    global POSTGRES_UNAVAILABLE
+    if USING_POSTGRES and not POSTGRES_UNAVAILABLE:
+        try:
+            return PostgresConnection(postgres_pool())
+        except Exception as exc:
+            logger.warning("Supabase PostgreSQL unavailable; using SQLite fallback: %s", exc)
+            POSTGRES_UNAVAILABLE = True
+    return sqlite_connection()
+
+
+def sqlite_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
@@ -81,7 +216,9 @@ def init_db(reset: bool = False):
     conn = get_conn()
     cur = conn.cursor()
 
-    cur.executescript("""
+    policy_id = "SERIAL PRIMARY KEY" if USING_POSTGRES else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    user_email = "TEXT NOT NULL UNIQUE" if USING_POSTGRES else "TEXT NOT NULL UNIQUE COLLATE NOCASE"
+    schema = f"""
     CREATE TABLE IF NOT EXISTS knowledge_sources (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -105,6 +242,9 @@ def init_db(reset: bool = False):
         latency_ms INTEGER NOT NULL,
         tokens INTEGER NOT NULL,
         explanation TEXT NOT NULL,
+        review_status TEXT NOT NULL DEFAULT 'Pending',
+        reviewed_by TEXT,
+        reviewed_at TEXT,
         created_at TEXT NOT NULL,
         FOREIGN KEY (knowledge_source_id) REFERENCES knowledge_sources(id)
     );
@@ -121,9 +261,9 @@ def init_db(reset: bool = False):
     );
 
     CREATE TABLE IF NOT EXISTS policies (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id {policy_id},
         name TEXT NOT NULL,
-        desc TEXT NOT NULL,
+        "desc" TEXT NOT NULL,
         enabled INTEGER NOT NULL DEFAULT 1
     );
 
@@ -139,7 +279,7 @@ def init_db(reset: bool = False):
     CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
-        email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        email {user_email},
         role TEXT NOT NULL,
         password_hash TEXT NOT NULL,
         created_at TEXT NOT NULL
@@ -151,10 +291,36 @@ def init_db(reset: bool = False):
         expires_at TEXT NOT NULL,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
-    """)
+    """
+    conn.executescript(schema)
     conn.commit()
 
-    if fresh:
+    if USING_POSTGRES and not POSTGRES_UNAVAILABLE:
+        conversation_columns = {row["column_name"] for row in conn.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_name='conversations'"
+        ).fetchall()}
+    else:
+        conversation_columns = {row[1] for row in conn.execute("PRAGMA table_info(conversations)").fetchall()}
+    for column, definition in (
+        ("review_status", "TEXT NOT NULL DEFAULT 'Pending'"),
+        ("reviewed_by", "TEXT"),
+        ("reviewed_at", "TEXT"),
+    ):
+        if column not in conversation_columns:
+            conn.execute(f"ALTER TABLE conversations ADD COLUMN {column} {definition}")
+    conn.commit()
+
+    # Keep existing demo installations manageable after introducing roles.
+    admin_count = conn.execute("SELECT COUNT(*) AS count FROM users WHERE role='Platform Admin'").fetchone()["count"]
+    if admin_count == 0:
+        conn.execute(
+            "UPDATE users SET role='Platform Admin' WHERE id=(SELECT id FROM users ORDER BY created_at LIMIT 1)"
+        )
+        conn.commit()
+
+    source_count = conn.execute("SELECT COUNT(*) AS count FROM knowledge_sources").fetchone()["count"]
+    conversation_count = conn.execute("SELECT COUNT(*) AS count FROM conversations").fetchone()["count"]
+    if fresh or source_count < len(SOURCES_SEED) or conversation_count < 50:
         _seed(conn)
     conn.close()
 
@@ -169,21 +335,27 @@ def _seed(conn):
     cur = conn.cursor()
 
     for s in SOURCES_SEED:
-        cur.execute(
-            "INSERT INTO knowledge_sources (id, name, type, status, chunks, content, updated_at) VALUES (?,?,?,?,?,?,?)",
-            (s["id"], s["name"], s["type"], s["status"], s["chunks"], s["content"], _rand_time_within(2)),
-        )
+        existing = conn.execute("SELECT id FROM knowledge_sources WHERE id=?", (s["id"],)).fetchone()
+        if not existing:
+            cur.execute(
+                "INSERT INTO knowledge_sources (id, name, type, status, chunks, content, updated_at) VALUES (?,?,?,?,?,?,?)",
+                (s["id"], s["name"], s["type"], s["status"], s["chunks"], s["content"], _rand_time_within(2)),
+            )
 
     for p in POLICIES_SEED:
-        cur.execute("INSERT INTO policies (name, desc, enabled) VALUES (?,?,?)", (p["name"], p["desc"], p["enabled"]))
+        existing = conn.execute("SELECT id FROM policies WHERE name=?", (p["name"],)).fetchone()
+        if not existing:
+            cur.execute("INSERT INTO policies (name, \"desc\", enabled) VALUES (?,?,?)", (p["name"], p["desc"], p["enabled"]))
 
     import uuid
     from scoring import mock_generate  # local import to avoid circular import at module load
 
-    for i in range(40):
+    existing_conversations = conn.execute("SELECT COUNT(*) AS count FROM conversations").fetchone()["count"]
+    seed_cases = TEST_CASES + [random.choice(TEST_CASES) for _ in range(max(0, 60 - existing_conversations - len(TEST_CASES)))]
+    for i, (source_id, case_prompt) in enumerate(seed_cases):
         assistant = random.choice(ASSISTANTS)
-        src = random.choice(SOURCES_SEED)
-        prompt = random.choice(SAMPLE_PROMPTS)
+        src = next(source for source in SOURCES_SEED if source["id"] == source_id)
+        prompt = case_prompt
         result = mock_generate(prompt, src["name"], src["content"])
         conv_id = str(uuid.uuid4())
         created = _rand_time_within(14)

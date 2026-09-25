@@ -30,6 +30,12 @@ spec:
             configMapKeyRef:
               name: ai-conversation-studio-config
               key: DB_PATH
+        - name: SUPABASE_DB_URL
+          valueFrom:
+            secretKeyRef:
+              name: ai-conversation-studio-secrets
+              key: SUPABASE_DB_URL
+              optional: true
         resources:
           requests:
             memory: "128Mi"
@@ -58,6 +64,5 @@ spec:
           mountPath: /data
       volumes:
       - name: data
-        persistentVolumeClaim:
-          claimName: ai-conversation-studio-pvc
+        emptyDir: {}
 

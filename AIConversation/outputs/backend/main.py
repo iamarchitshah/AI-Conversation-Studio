@@ -435,7 +435,7 @@ def patch_policy(policy_id: int, patch: PolicyPatch):
         raise HTTPException(404, "Not found")
     enabled = row["enabled"] if patch.enabled is None else (1 if patch.enabled else 0)
     desc = row["desc"] if patch.desc is None else patch.desc
-    conn.execute("UPDATE policies SET enabled=?, desc=? WHERE id=?", (enabled, desc, policy_id))
+    conn.execute("UPDATE policies SET enabled=?, \"desc\"=? WHERE id=?", (enabled, desc, policy_id))
     conn.commit()
     row = conn.execute("SELECT * FROM policies WHERE id=?", (policy_id,)).fetchone()
     conn.close()

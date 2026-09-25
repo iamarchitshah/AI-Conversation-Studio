@@ -7,18 +7,20 @@ import uuid
 import datetime as dt
 import hashlib
 import secrets
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Optional, List
 
-from fastapi import FastAPI, HTTPException, Query, Header
+from fastapi import FastAPI, HTTPException, Query, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
 import database as db
 from scoring import mock_generate
 
 app = FastAPI(title="AI Conversation Studio API", version="1.0")
+REQUEST_USER = ContextVar("request_user", default=None)
 
 # CORS stays wide-open — harmless for local/demo use, and keeps things working
 # even if someone opens the frontend from a different origin than the API.
@@ -74,7 +76,40 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
-AUTH_ROLES = ["Knowledge Manager", "QA Tester", "Evaluator", "Governance Owner", "Leadership"]
+class AdminUserPatch(BaseModel):
+    role: Optional[str] = None
+
+
+class ReviewPatch(BaseModel):
+    status: str
+
+
+AUTH_ROLES = ["Platform Admin", "Knowledge Manager", "QA Tester", "Evaluator", "Governance Owner", "Leadership", "Employee"]
+ROLE_MODULES = {
+    "Platform Admin": {"analytics", "knowledge", "testing", "evaluation", "feedback", "governance", "admin"},
+    "Knowledge Manager": {"analytics", "knowledge"},
+    "QA Tester": {"testing", "evaluation", "feedback"},
+    "Evaluator": {"analytics", "evaluation", "feedback"},
+    "Governance Owner": {"analytics", "evaluation", "governance"},
+    "Leadership": {"analytics"},
+    "Employee": {"employee", "feedback"},
+}
+
+
+def module_for_path(path: str):
+    for prefix, module in (
+        ("/knowledge-sources", "knowledge"),
+        ("/conversations", "testing"),
+        ("/evaluations", "evaluation"),
+        ("/feedback", "feedback"),
+        ("/governance", "governance"),
+        ("/analytics", "analytics"),
+        ("/assistants", "analytics"),
+        ("/admin", "admin"),
+    ):
+        if path.startswith("/api/v1" + prefix):
+            return module
+    return None
 
 
 def hash_password(password: str, salt: Optional[bytes] = None) -> str:
@@ -95,7 +130,15 @@ def verify_password(password: str, stored: str) -> bool:
 
 
 def user_payload(row):
-    return {"id": row["id"], "name": row["name"], "email": row["email"], "role": row["role"]}
+    role = row["role"]
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "email": row["email"],
+        "role": role,
+        "modules": sorted(ROLE_MODULES.get(role, set())),
+        "isAdmin": role == "Platform Admin",
+    }
 
 
 def issue_session(user_id: str):
@@ -109,6 +152,9 @@ def issue_session(user_id: str):
 
 
 def current_user(authorization: Optional[str] = Header(default=None)):
+    request_user = REQUEST_USER.get()
+    if request_user is not None:
+        return request_user
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(401, "Authentication required")
     token = authorization.split(" ", 1)[1].strip()
@@ -123,9 +169,50 @@ def current_user(authorization: Optional[str] = Header(default=None)):
     return row
 
 
+@app.middleware("http")
+async def enforce_module_access(request: Request, call_next):
+    path = request.url.path
+    if not path.startswith("/api/v1") or path in {
+        "/api/v1/auth/roles", "/api/v1/auth/register", "/api/v1/auth/login",
+    }:
+        return await call_next(request)
+
+    authorization = request.headers.get("authorization", "")
+    if not authorization.lower().startswith("bearer "):
+        return JSONResponse({"detail": "Authentication required"}, status_code=401)
+    token = authorization.split(" ", 1)[1].strip()
+    conn = db.get_conn()
+    user = conn.execute(
+        """SELECT u.* FROM users u JOIN auth_sessions s ON s.user_id=u.id
+           WHERE s.token=? AND s.expires_at>?""", (token, now_iso())
+    ).fetchone()
+    conn.close()
+    if not user:
+        return JSONResponse({"detail": "Invalid or expired session"}, status_code=401)
+    module = module_for_path(path)
+    allowed_modules = ROLE_MODULES.get(user["role"], set())
+    shared_reads = {
+        "knowledge": {"GET": {"Knowledge Manager", "QA Tester", "Employee"}},
+        "analytics": {"GET": {"Knowledge Manager", "QA Tester", "Evaluator", "Governance Owner", "Leadership", "Employee"}},
+        "testing": {"POST": {"Employee"}},
+    }
+    shared_read_allowed = (
+        module in shared_reads
+        and request.method in shared_reads[module]
+        and user["role"] in shared_reads[module][request.method]
+    )
+    if module and module not in allowed_modules and not shared_read_allowed:
+        return JSONResponse({"detail": "Your role does not have access to this module"}, status_code=403)
+    context_token = REQUEST_USER.set(user)
+    try:
+        return await call_next(request)
+    finally:
+        REQUEST_USER.reset(context_token)
+
+
 @app.get("/api/v1/auth/roles")
 def auth_roles():
-    return AUTH_ROLES
+    return AUTH_ROLES[1:]
 
 
 @app.post("/api/v1/auth/register")
@@ -135,18 +222,21 @@ def register(req: RegisterRequest):
         raise HTTPException(400, "Enter a valid name and email")
     if len(password) < 8:
         raise HTTPException(400, "Password must be at least 8 characters")
-    if role not in AUTH_ROLES:
+    if role not in AUTH_ROLES[1:]:
         raise HTTPException(400, "Choose a valid role")
     user_id = str(uuid.uuid4())
     conn = db.get_conn()
     try:
+        existing_users = conn.execute("SELECT COUNT(*) AS count FROM users").fetchone()["count"]
+        if existing_users == 0:
+            role = "Platform Admin"
         conn.execute(
             "INSERT INTO users (id, name, email, role, password_hash, created_at) VALUES (?,?,?,?,?,?)",
             (user_id, name, email, role, hash_password(password), now_iso()),
         )
         conn.commit()
         user = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
-    except db.sqlite3.IntegrityError:
+    except db.INTEGRITY_ERRORS:
         conn.close()
         raise HTTPException(409, "An account with that email already exists")
     conn.close()
@@ -154,10 +244,42 @@ def register(req: RegisterRequest):
     return {"token": token, "expiresAt": expires_at, "user": user_payload(user)}
 
 
+@app.get("/api/v1/admin/users")
+def list_users():
+    conn = db.get_conn()
+    rows = conn.execute("SELECT id, name, email, role, created_at FROM users ORDER BY created_at").fetchall()
+    conn.close()
+    return [dict(row) | {"isAdmin": row["role"] == "Platform Admin"} for row in rows]
+
+
+@app.patch("/api/v1/admin/users/{user_id}")
+def update_user_role(user_id: str, patch: AdminUserPatch, authorization: Optional[str] = Header(default=None)):
+    if patch.role not in AUTH_ROLES:
+        raise HTTPException(400, "Choose a valid role")
+    actor = current_user(authorization)
+    if actor["id"] == user_id and patch.role != "Platform Admin":
+        raise HTTPException(400, "The Platform Admin cannot remove their own admin access")
+    conn = db.get_conn()
+    target = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+    if not target:
+        conn.close()
+        raise HTTPException(404, "User not found")
+    if target["role"] == "Platform Admin" and patch.role != "Platform Admin":
+        admins = conn.execute("SELECT COUNT(*) AS count FROM users WHERE role='Platform Admin'").fetchone()["count"]
+        if admins <= 1:
+            conn.close()
+            raise HTTPException(400, "At least one Platform Admin is required")
+    conn.execute("UPDATE users SET role=? WHERE id=?", (patch.role, user_id))
+    conn.commit()
+    updated = conn.execute("SELECT id, name, email, role, created_at FROM users WHERE id=?", (user_id,)).fetchone()
+    conn.close()
+    return dict(updated) | {"isAdmin": updated["role"] == "Platform Admin"}
+
+
 @app.post("/api/v1/auth/login")
 def login(req: LoginRequest):
     conn = db.get_conn()
-    user = conn.execute("SELECT * FROM users WHERE email=? COLLATE NOCASE", (req.email.strip(),)).fetchone()
+    user = conn.execute("SELECT * FROM users WHERE LOWER(email)=LOWER(?)", (req.email.strip(),)).fetchone()
     conn.close()
     if not user or not verify_password(req.password, user["password_hash"]):
         raise HTTPException(401, "Invalid email or password")
@@ -168,6 +290,14 @@ def login(req: LoginRequest):
 @app.get("/api/v1/auth/me")
 def auth_me(authorization: Optional[str] = Header(default=None)):
     return user_payload(current_user(authorization))
+
+
+@app.get("/api/v1/bootstrap")
+def bootstrap():
+    conn = db.get_conn()
+    rows = conn.execute("SELECT * FROM knowledge_sources ORDER BY updated_at DESC").fetchall()
+    conn.close()
+    return {"assistants": ASSISTANTS, "sources": [dict(row) for row in rows]}
 
 
 @app.post("/api/v1/auth/logout")
@@ -316,7 +446,7 @@ def delete_source(source_id: str):
 def list_evaluations(assistant: Optional[str] = None, flagged: Optional[bool] = None,
                       minScore: Optional[int] = None, page: int = 1, pageSize: int = 60):
     conn = db.get_conn()
-    q = "SELECT id as conversationId, assistant, prompt, faithfulness, relevance, completeness, flagged, created_at FROM conversations WHERE 1=1"
+    q = "SELECT id as conversationId, assistant, prompt, faithfulness, relevance, completeness, flagged, review_status, reviewed_by, reviewed_at, created_at FROM conversations WHERE 1=1"
     params = []
     if assistant and assistant != "All assistants":
         q += " AND assistant=?"
@@ -332,6 +462,26 @@ def list_evaluations(assistant: Optional[str] = None, flagged: Optional[bool] = 
     rows = conn.execute(q, params).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+@app.patch("/api/v1/evaluations/{conversation_id}/review")
+def review_evaluation(conversation_id: str, patch: ReviewPatch, authorization: Optional[str] = Header(default=None)):
+    if patch.status not in {"Approved", "Needs changes", "Escalated"}:
+        raise HTTPException(400, "Choose Approved, Needs changes, or Escalated")
+    reviewer = current_user(authorization)
+    conn = db.get_conn()
+    row = conn.execute("SELECT id FROM conversations WHERE id=?", (conversation_id,)).fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(404, "Evaluation not found")
+    conn.execute(
+        "UPDATE conversations SET review_status=?, reviewed_by=?, reviewed_at=? WHERE id=?",
+        (patch.status, reviewer["name"], now_iso(), conversation_id),
+    )
+    conn.commit()
+    updated = conn.execute("SELECT id as conversationId, review_status, reviewed_by, reviewed_at FROM conversations WHERE id=?", (conversation_id,)).fetchone()
+    conn.close()
+    return dict(updated)
 
 
 @app.get("/api/v1/evaluations/{conversation_id}")
@@ -435,7 +585,7 @@ def patch_policy(policy_id: int, patch: PolicyPatch):
         raise HTTPException(404, "Not found")
     enabled = row["enabled"] if patch.enabled is None else (1 if patch.enabled else 0)
     desc = row["desc"] if patch.desc is None else patch.desc
-    conn.execute("UPDATE policies SET enabled=?, desc=? WHERE id=?", (enabled, desc, policy_id))
+    conn.execute("UPDATE policies SET enabled=?, \"desc\"=? WHERE id=?", (enabled, desc, policy_id))
     conn.commit()
     row = conn.execute("SELECT * FROM policies WHERE id=?", (policy_id,)).fetchone()
     conn.close()
@@ -545,4 +695,14 @@ def list_assistants():
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    conn = db.get_conn()
+    sources = conn.execute("SELECT COUNT(*) AS count FROM knowledge_sources").fetchone()["count"]
+    conversations = conn.execute("SELECT COUNT(*) AS count FROM conversations").fetchone()["count"]
+    conn.close()
+    return {
+        "status": "ok",
+        "database": "supabase-postgres" if db.USING_POSTGRES and not db.POSTGRES_UNAVAILABLE else "sqlite",
+        "supabaseConfigured": db.USING_POSTGRES,
+        "knowledgeSources": sources,
+        "conversations": conversations,
+    }

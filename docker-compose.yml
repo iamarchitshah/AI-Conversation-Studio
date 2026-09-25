@@ -8,4 +8,7 @@ services:
     container_name: ai-conversation-studio
     ports:
       - "8000:8000"
+    environment:
+      SUPABASE_DB_URL: ${SUPABASE_DB_URL:-}
+      DB_PATH: ${DB_PATH:-/data/studio.db}
     restart: unless-stopped

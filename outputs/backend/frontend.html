@@ -239,6 +239,7 @@ tr:hover td{background:var(--surface-hover);}
         <div class="auth-role"><strong>Evaluator</strong>Answer review</div>
         <div class="auth-role"><strong>Governance Owner</strong>Safety rules</div>
         <div class="auth-role"><strong>Leadership</strong>Trend visibility</div>
+        <div class="auth-role"><strong>Employee</strong>Verified answers</div>
       </div>
     </div>
     <form class="auth-form" id="authForm">
@@ -266,12 +267,14 @@ tr:hover td{background:var(--surface-hover);}
       <div class="brand-mark">CS</div>
       <div class="brand-text">Conversation Studio<span>Global Enterprise</span></div>
     </div>
-    <div class="navlink active" data-view="dashboard"><span class="ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.1-2.8-2.8L7 14.1"/></svg></span> Analytics</div>
-    <div class="navlink" data-view="knowledge"><span class="ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span> Knowledge Base</div>
-    <div class="navlink" data-view="playground"><span class="ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></span> Testing Playground</div>
-    <div class="navlink" data-view="evaluation"><span class="ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span> Evaluation Log</div>
-    <div class="navlink" data-view="feedback"><span class="ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg></span> Feedback</div>
-    <div class="navlink" data-view="governance"><span class="ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span> Governance</div>
+    <div class="navlink active" data-view="dashboard" data-module="analytics"><span class="ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.1-2.8-2.8L7 14.1"/></svg></span> Analytics</div>
+    <div class="navlink" data-view="knowledge" data-module="knowledge"><span class="ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span> Knowledge Base</div>
+    <div class="navlink" data-view="playground" data-module="employee" style="display:none"><span class="ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 10h8M8 14h5"/></svg></span> Ask Assistant</div>
+    <div class="navlink" data-view="playground" data-module="testing"><span class="ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></span> Testing Playground</div>
+    <div class="navlink" data-view="evaluation" data-module="evaluation"><span class="ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span> Evaluation Log</div>
+    <div class="navlink" data-view="feedback" data-module="feedback"><span class="ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg></span> Feedback</div>
+    <div class="navlink" data-view="governance" data-module="governance"><span class="ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span> Governance</div>
+    <div class="navlink" data-view="admin" data-module="admin" style="display:none"><span class="ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Admin</div>
     <div class="navfoot mono">v0.5 · backend-connected<br>LLM &amp; sources: MOCKED
       <div id="connStatus" style="margin-top:8px;font-size:10.5px;display:flex;align-items:center;gap:6px;"><span id="connDot" class="status-dot" style="margin:0"></span> connecting…</div>
       <input id="apiBaseInput" value="http://localhost:8000/api/v1" style="width:100%;margin-top:6px;background:var(--surface-alt);border:1px solid var(--border);color:var(--text);font-size:10px;padding:5px 6px;border-radius:5px;font-family:'JetBrains Mono'"
@@ -310,7 +313,7 @@ tr:hover td{background:var(--surface-hover);}
 
     <!-- ================= PLAYGROUND ================= -->
     <div class="view" id="view-playground" style="display:none">
-      <div class="topbar"><div><h1>Testing Playground</h1><p>Prompt an assistant against a chosen knowledge source and inspect grounding in real time</p></div></div>
+      <div class="topbar"><div><h1 id="playgroundTitle">Testing Playground</h1><p id="playgroundSubtitle">Prompt an assistant against a chosen knowledge source and inspect grounding in real time</p></div></div>
       <div class="playground">
         <div class="card">
           <div class="form-row"><span class="field-label">Assistant / Model</span>
@@ -353,7 +356,7 @@ tr:hover td{background:var(--surface-hover);}
     <div class="view" id="view-evaluation" style="display:none">
       <div class="topbar"><div><h1>Response Evaluation Log</h1><p>Every generated response, automatically scored for faithfulness, relevance and completeness</p></div></div>
       <div class="card">
-        <table><thead><tr><th>Time</th><th>Assistant</th><th>Prompt</th><th>Faithfulness</th><th>Relevance</th><th>Flag</th></tr></thead>
+        <table><thead><tr><th>Time</th><th>Assistant</th><th>Prompt</th><th>Faithfulness</th><th>Relevance</th><th>Flag</th><th>Review decision</th></tr></thead>
         <tbody id="evalTable"></tbody></table>
       </div>
     </div>
@@ -379,6 +382,15 @@ tr:hover td{background:var(--surface-hover);}
         <div class="panel-title">Audit trail <span class="tag amber" id="auditCount"></span></div>
         <table><thead><tr><th>Time</th><th>Assistant</th><th>Policy triggered</th><th>Action</th><th>Reviewer</th></tr></thead>
         <tbody id="auditTable"></tbody></table>
+      </div>
+    </div>
+
+    <div class="view" id="view-admin" style="display:none">
+      <div class="topbar"><div><h1>Workspace Administration</h1><p>Manage people and their access to Conversation Studio modules</p></div></div>
+      <div class="card">
+        <div class="panel-title">Users <span class="tag teal" id="userCount"></span></div>
+        <table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Created</th></tr></thead>
+        <tbody id="userTable"></tbody></table>
       </div>
     </div>
   </div>
@@ -421,7 +433,11 @@ async function api(path, opts) {
   const token = sessionStorage.getItem('studioToken');
   if (token) headers.Authorization = 'Bearer ' + token;
   const res = await fetch(API_BASE + path, Object.assign({ headers }, opts));
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+    const error = new Error(await res.text());
+    error.status = res.status;
+    throw error;
+  }
   return res.json();
 }
 
@@ -435,6 +451,7 @@ function setAuthenticated(auth) {
   sessionStorage.setItem('studioToken', auth.token);
   sessionStorage.setItem('studioUser', JSON.stringify(auth.user));
   showUserSession(auth.user);
+  applyModuleAccess(auth.user);
   document.getElementById('authScreen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   boot();
@@ -445,6 +462,13 @@ function showUserSession(user) {
   const logoutButton = document.getElementById('logoutButton');
   if (session && user) { session.textContent = user.name + ' · ' + user.role; session.style.display = 'block'; }
   if (logoutButton) logoutButton.style.display = 'block';
+}
+
+function applyModuleAccess(user) {
+  const modules = new Set((user && user.modules) || []);
+  document.querySelectorAll('[data-module]').forEach(el => {
+    el.style.display = modules.has(el.dataset.module) ? 'flex' : 'none';
+  });
 }
 
 async function logout() {
@@ -484,7 +508,7 @@ async function prepareAuth() {
   } catch (_) {}
   const storedUser = sessionStorage.getItem('studioUser');
   if (sessionStorage.getItem('studioToken') && storedUser) {
-    try { currentUser = await api('/auth/me'); showUserSession(currentUser); document.getElementById('authScreen').style.display = 'none'; document.getElementById('app').style.display = 'flex'; boot(); return; } catch (_) { sessionStorage.clear(); }
+    try { currentUser = await api('/auth/me'); showUserSession(currentUser); applyModuleAccess(currentUser); document.getElementById('authScreen').style.display = 'none'; document.getElementById('app').style.display = 'flex'; boot(); return; } catch (_) { sessionStorage.clear(); }
   }
   document.getElementById('app').style.display = 'none';
 }
@@ -525,11 +549,14 @@ function animateCount(el, target, suffix, duration) {
 async function boot() {
   let reachable = true;
   try {
-    assistants = await api('/assistants');
-  } catch (e) { assistants = []; reachable = false; }
-  try {
-    sources = await api('/knowledge-sources');
-  } catch (e) { sources = []; reachable = false; }
+    const bootstrap = await api('/bootstrap');
+    assistants = bootstrap.assistants;
+    sources = bootstrap.sources;
+  } catch (error) {
+    assistants = [];
+    sources = [];
+    reachable = !error.status;
+  }
 
   fillSelect(document.getElementById('assistantFilter'), ["All assistants", ...assistants]);
   fillSelect(document.getElementById('pgAssistant'), assistants);
@@ -540,8 +567,8 @@ async function boot() {
     toast('Cannot reach the backend at ' + API_BASE + '. Start it, or edit the URL in the left nav.', 'error');
     return;
   }
-  renderKB();
-  renderDashboard();
+  if (currentUser && ['Platform Admin', 'Knowledge Manager', 'QA Tester', 'Employee'].includes(currentUser.role)) renderKB();
+  openFirstAllowedModule();
 }
 
 function setConnStatus(ok) {
@@ -567,6 +594,26 @@ function toast(message, type) {
 
 function fillSelect(sel, arr) { sel.innerHTML = arr.map(v => `<option>${v}</option>`).join(''); }
 
+function openFirstAllowedModule() {
+  const preferred = {
+    'Knowledge Manager': ['knowledge'],
+    'QA Tester': ['testing'],
+    'Evaluator': ['evaluation'],
+    'Governance Owner': ['governance'],
+    'Leadership': ['analytics'],
+    'Employee': ['employee'],
+    'Platform Admin': ['analytics']
+  }[currentUser && currentUser.role] || [];
+  const first = preferred.map(module => document.querySelector(`[data-module="${module}"]`)).find(el => el && el.style.display !== 'none')
+    || [...document.querySelectorAll('.navlink')].find(el => el.style.display !== 'none');
+  const employeeView = currentUser && currentUser.role === 'Employee';
+  document.getElementById('playgroundTitle').textContent = employeeView ? 'Ask the AI Assistant' : 'Testing Playground';
+  document.getElementById('playgroundSubtitle').textContent = employeeView
+    ? 'Ask a question and review the source-backed answer before you rely on it'
+    : 'Prompt an assistant against a chosen knowledge source and inspect grounding in real time';
+  if (first) first.click();
+}
+
 /* ---------------- nav ---------------- */
 document.querySelectorAll('.navlink').forEach(el => {
   el.addEventListener('click', () => {
@@ -578,9 +625,26 @@ document.querySelectorAll('.navlink').forEach(el => {
     if (el.dataset.view === 'evaluation') renderEval();
     if (el.dataset.view === 'feedback') renderFeedback();
     if (el.dataset.view === 'governance') renderGovernance();
+    if (el.dataset.view === 'admin') renderAdmin();
   });
 });
 document.getElementById('assistantFilter').addEventListener('change', renderDashboard);
+
+async function renderAdmin() {
+  try {
+    const users = await api('/admin/users');
+    document.getElementById('userCount').textContent = users.length + ' accounts';
+    document.getElementById('userTable').innerHTML = users.map(user => `<tr>
+      <td><strong>${user.name}</strong></td><td>${user.email}</td>
+      <td><select onchange="changeUserRole('${user.id}', this.value)">${['Platform Admin','Knowledge Manager','QA Tester','Evaluator','Governance Owner','Leadership','Employee'].map(role => `<option ${role === user.role ? 'selected' : ''}>${role}</option>`).join('')}</select></td>
+      <td>${fmtTime(user.created_at)}</td></tr>`).join('');
+  } catch (e) { toast('Unable to load workspace users.', 'error'); }
+}
+
+async function changeUserRole(userId, role) {
+  try { await api('/admin/users/' + encodeURIComponent(userId), { method: 'PATCH', body: JSON.stringify({ role }) }); toast('Role updated.'); }
+  catch (e) { toast('Role update failed.', 'error'); renderAdmin(); }
+}
 
 function scoreColor(v) { return v >= 80 ? '#3FB88F' : v >= 60 ? '#E8963C' : '#E5534B'; }
 function fmtTime(iso) {
@@ -806,7 +870,18 @@ async function renderEval() {
     <td>${e.assistant}</td><td>${e.prompt}</td>
     <td style="color:${scoreColor(e.faithfulness)}">${e.faithfulness}%</td>
     <td style="color:${scoreColor(e.relevance)}">${e.relevance}%</td>
-    <td>${e.flagged ? '<span class="tag red">REVIEW</span>' : '<span class="tag teal">OK</span>'}</td></tr>`).join('');
+    <td>${e.flagged ? '<span class="tag red">REVIEW</span>' : '<span class="tag teal">OK</span>'}</td>
+    <td>${e.flagged && currentUser && ['Evaluator', 'Platform Admin'].includes(currentUser.role)
+      ? `<select onchange="reviewEvaluation('${e.conversationId}', this.value)"><option disabled ${e.review_status === 'Pending' ? 'selected' : ''}>Pending</option><option ${e.review_status === 'Approved' ? 'selected' : ''}>Approved</option><option ${e.review_status === 'Needs changes' ? 'selected' : ''}>Needs changes</option><option ${e.review_status === 'Escalated' ? 'selected' : ''}>Escalated</option></select>`
+      : (e.review_status || 'Pending')}</td></tr>`).join('');
+}
+
+async function reviewEvaluation(conversationId, status) {
+  try {
+    await api(`/evaluations/${encodeURIComponent(conversationId)}/review`, { method: 'PATCH', body: JSON.stringify({ status }) });
+    toast('Review decision saved.');
+    renderEval();
+  } catch (e) { toast('Could not save review decision.', 'error'); }
 }
 
 /* ================= FEEDBACK ================= */
