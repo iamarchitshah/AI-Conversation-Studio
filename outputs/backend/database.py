@@ -209,6 +209,80 @@ def sqlite_connection():
     return conn
 
 
+def hash_password(password: str, salt: bytes | None = None) -> str:
+    import hashlib
+    import secrets
+
+    salt = salt or secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 240000)
+    return f"pbkdf2_sha256$240000${salt.hex()}${digest.hex()}"
+
+
+def seed_role_users(conn):
+    default_password = "Welcome@123"
+    role_users = [
+        {
+            "id": "11111111-1111-4111-8111-111111111111",
+            "name": "Platform Admin",
+            "email": "platform.admin@company.com",
+            "role": "Platform Admin",
+        },
+        {
+            "id": "22222222-2222-4222-8222-222222222222",
+            "name": "Knowledge Manager",
+            "email": "knowledge.manager@company.com",
+            "role": "Knowledge Manager",
+        },
+        {
+            "id": "33333333-3333-4333-8333-333333333333",
+            "name": "QA Tester",
+            "email": "qa.tester@company.com",
+            "role": "QA Tester",
+        },
+        {
+            "id": "44444444-4444-4444-8444-444444444444",
+            "name": "Evaluator",
+            "email": "evaluator@company.com",
+            "role": "Evaluator",
+        },
+        {
+            "id": "55555555-5555-4555-8555-555555555555",
+            "name": "Governance Owner",
+            "email": "governance.owner@company.com",
+            "role": "Governance Owner",
+        },
+        {
+            "id": "66666666-6666-4666-8666-666666666666",
+            "name": "Leadership",
+            "email": "leadership@company.com",
+            "role": "Leadership",
+        },
+        {
+            "id": "77777777-7777-4777-8777-777777777777",
+            "name": "Employee",
+            "email": "employee@company.com",
+            "role": "Employee",
+        },
+    ]
+
+    for user in role_users:
+        existing = conn.execute(
+            "SELECT id FROM users WHERE LOWER(email)=LOWER(?)",
+            (user["email"],),
+        ).fetchone()
+        if existing:
+            conn.execute(
+                "UPDATE users SET name=?, role=?, password_hash=? WHERE id=?",
+                (user["name"], user["role"], hash_password(default_password), user["id"]),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO users (id, name, email, role, password_hash, created_at) VALUES (?,?,?,?,?,?)",
+                (user["id"], user["name"], user["email"], user["role"], hash_password(default_password), dt.datetime.utcnow().isoformat()),
+            )
+    conn.commit()
+
+
 def init_db(reset: bool = False):
     if reset and os.path.exists(DB_PATH):
         os.remove(DB_PATH)
@@ -317,6 +391,10 @@ def init_db(reset: bool = False):
             "UPDATE users SET role='Platform Admin' WHERE id=(SELECT id FROM users ORDER BY created_at LIMIT 1)"
         )
         conn.commit()
+
+    user_count = conn.execute("SELECT COUNT(*) AS count FROM users").fetchone()["count"]
+    if user_count == 0:
+        seed_role_users(conn)
 
     source_count = conn.execute("SELECT COUNT(*) AS count FROM knowledge_sources").fetchone()["count"]
     conversation_count = conn.execute("SELECT COUNT(*) AS count FROM conversations").fetchone()["count"]

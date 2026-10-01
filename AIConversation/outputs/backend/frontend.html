@@ -477,11 +477,23 @@ async function submitAuth(event) {
   }
 }
 
+const AUTH_ROLE_OPTIONS = ["Knowledge Manager", "QA Tester", "Evaluator", "Governance Owner", "Leadership", "Employee"];
+
+function populateAuthRoles(roles = AUTH_ROLE_OPTIONS) {
+  const select = document.getElementById('authRole');
+  if (!select) return;
+  const safeRoles = Array.isArray(roles) && roles.length ? roles : AUTH_ROLE_OPTIONS;
+  select.innerHTML = safeRoles.map(role => `<option value="${role}">${role}</option>`).join('');
+  if (!select.value) select.value = safeRoles[0];
+}
+
 async function prepareAuth() {
   try {
     const roles = await api('/auth/roles');
-    document.getElementById('authRole').innerHTML = roles.map(role => `<option>${role}</option>`).join('');
-  } catch (_) {}
+    populateAuthRoles(roles);
+  } catch (_) {
+    populateAuthRoles(AUTH_ROLE_OPTIONS);
+  }
   const storedUser = sessionStorage.getItem('studioUser');
   if (sessionStorage.getItem('studioToken') && storedUser) {
     try { currentUser = await api('/auth/me'); showUserSession(currentUser); document.getElementById('authScreen').style.display = 'none'; document.getElementById('app').style.display = 'flex'; boot(); return; } catch (_) { sessionStorage.clear(); }

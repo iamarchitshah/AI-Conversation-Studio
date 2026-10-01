@@ -92,7 +92,7 @@ ROLE_MODULES = {
     "Evaluator": {"analytics", "evaluation", "feedback"},
     "Governance Owner": {"analytics", "evaluation", "governance"},
     "Leadership": {"analytics"},
-    "Employee": {"employee", "feedback"},
+    "Employee": {"employee"},
 }
 
 
