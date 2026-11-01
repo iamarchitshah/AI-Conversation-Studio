@@ -1,3 +1,4 @@
+
 pipeline {
     agent any
 
@@ -9,17 +10,14 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                // Jenkins automatically checks out the repository. 
-                // We're just logging that we are starting the pipeline.
                 echo 'Checking out source code...'
             }
         }
-        
+
         stage('Install Dependencies') {
             steps {
                 dir('outputs/backend') {
                     echo 'Installing Python dependencies...'
-                    // Setting up a virtual environment is best practice
                     bat '''
                         %PYTHON% -m venv venv
                         call venv\\Scripts\\activate.bat
@@ -29,7 +27,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Linting or Checking') {
             steps {
                 dir('outputs/backend') {
@@ -59,7 +57,39 @@ pipeline {
                 }
             }
         }
-        
+
+        // NEW STAGE: OWASP ZAP AUTOMATED SECURITY SCAN
+        stage('OWASP ZAP Security Scan') {
+            steps {
+                echo 'Starting OWASP ZAP Security Scan...'
+
+                bat '''
+                    docker pull ghcr.io/zaproxy/zaproxy:stable
+
+                    if not exist reports mkdir reports
+
+                    docker run --rm ^
+                      -v "%CD%:/zap/wrk/:rw" ^
+                      ghcr.io/zaproxy/zaproxy:stable ^
+                      zap-baseline.py ^
+                      -t http://host.docker.internal:8000 ^
+                      -r reports/zap-report.html ^
+                      -J reports/zap-report.json ^
+                      -I
+
+                    if errorlevel 2 exit /b %ERRORLEVEL%
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts(
+                        artifacts: 'reports/zap-report.html,reports/zap-report.json',
+                        allowEmptyArchive: true
+                    )
+                }
+            }
+        }
+
         stage('Deploy to AWS EKS') {
             environment {
                 // Configuration for AWS EKS deployment
@@ -67,39 +97,39 @@ pipeline {
                 AWS_REGION = 'us-east-1'
                 CLUSTER_NAME = 'ai-conversation-studio-cluster'
                 ECR_REPO = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/ai-conversation-studio"
-                
-                // Force Jenkins to use your personal Windows user profile's credential folders
+
+                // Force Jenkins to use your Windows user profile's credentials
                 USERPROFILE = 'C:\\Users\\Archit Shah'
-                
-                // Instruct Docker to bypass named pipe permissions by communicating over local TCP
+
+                // Docker TCP communication
                 DOCKER_HOST = 'tcp://localhost:2375'
             }
+
             steps {
-                // Return to workspace root because Dockerfile and k8s/ are in the root directory
                 dir('.') {
                     echo '1. Authenticating with AWS ECR...'
                     bat "aws ecr get-login-password --region %AWS_REGION% | docker login --username AWS --password-stdin %ECR_REPO%"
-                    
+
                     echo '2. Building the Docker Image...'
                     bat "docker build -t ai-conversation-studio:latest ."
-                    
+
                     echo '3. Tagging and Pushing Image to ECR...'
                     bat "docker tag ai-conversation-studio:latest %ECR_REPO%:latest"
                     bat "docker push %ECR_REPO%:latest"
-                    
+
                     echo '4. Updating Kubeconfig for EKS...'
                     bat "aws eks update-kubeconfig --region %AWS_REGION% --name %CLUSTER_NAME%"
-                    
+
                     echo '5. Applying Kubernetes Manifests...'
                     bat "kubectl apply -f k8s/namespace.yaml"
                     bat "kubectl apply -f k8s/"
-                    
+
                     echo 'Deployment complete!'
                 }
             }
         }
     }
-    
+
     post {
         always {
             echo 'Pipeline has completed.'
